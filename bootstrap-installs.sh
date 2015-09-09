@@ -4,9 +4,7 @@
 sudo add-apt-repository ppa:chris-lea/node.js  
 sudo apt-get update  
 sudo apt-get install nodejs
-# yes, npm is installed in this package!
-
-sudo apt-get install vim git make i3
+sudo apt-get install npm
 
 # install zsh and set that as shell?
 # this won't take effect until after restart
