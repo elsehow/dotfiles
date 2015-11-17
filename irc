@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ssh -t nick@ischool.berkeley.edu screen -x irc
