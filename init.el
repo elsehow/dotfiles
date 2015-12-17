@@ -10,7 +10,9 @@
 		      projectile
 		      clojure-mode
 		      cider
-		      evil))
+		      evil
+                      evil-leader
+                      evil-org))
 
 (dolist (p my-packages)
   (unless (package-installed-p p)
@@ -18,6 +20,8 @@
 
 ;; Enable Evil mode as defuault
 (require 'evil)
+(require 'evil-leader)
+(require 'evil-org)
 (evil-mode 1)
 ;; change windows
 (eval-after-load "evil"
