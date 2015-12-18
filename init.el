@@ -1,9 +1,7 @@
-(require 'package) ;; You might already have this line
+(require 'package)
+(setq package-user-dir "~/.emacs.d/elpa/")
 (add-to-list 'package-archives
-	     '("melpa" . "https://melpa.org/packages/"))
-(when (< emacs-major-version 24)
-  ;; For important compatibility libraries like cl-lib
-  (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/")))
+             '("melpa" . "http://melpa.milkbox.net/packages/") t)
 (package-initialize)
 
 (defvar my-packages '(better-defaults
@@ -11,9 +9,10 @@
 		      clojure-mode
 		      cider
 		      evil
-                      evil-leader
-                      evil-org))
-
+          evil-leader
+          evil-org))
+(interactive)
+(package-refresh-contents)
 (dolist (p my-packages)
   (unless (package-installed-p p)
         (package-install p)))
@@ -68,7 +67,7 @@
   (let ((modified (buffer-modified-p)))
     (insert "j")
     (let ((evt (read-event (format "Insert %c to exit insert state" ?k)
-                           nil 0.5)))
+               nil 0.5)))
       (cond
        ((null evt) (message ""))
        ((and (integerp evt) (char-equal evt ?k))
@@ -84,3 +83,17 @@
             (local-set-key (kbd "C-c C-c") 'org-table-align)
             (local-set-key (kbd "C-c C-f") 'org-table-calc-current-TBLFM)
             (org-indent-mode t)))
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   (quote
+    (evil-org evil-leader evil cider clojure-mode projectile better-defaults))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
