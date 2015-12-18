@@ -11,8 +11,8 @@
 		      evil
           evil-leader
           evil-org))
-(interactive)
-(package-refresh-contents)
+;;(interactive)
+;;(package-refresh-contents)
 (dolist (p my-packages)
   (unless (package-installed-p p)
         (package-install p)))
