@@ -18,6 +18,7 @@
         (package-install p)))
 
 ;; Enable Evil mode as defuault
+(setq evil-want-C-i-jump nil)
 (require 'evil)
 (require 'evil-leader)
 (require 'evil-org)
@@ -88,6 +89,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(org-agenda-files (quote ("~/Notes/winterrr.org")))
  '(package-selected-packages
    (quote
     (evil-org evil-leader evil cider clojure-mode projectile better-defaults))))
@@ -97,3 +99,5 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
+
+(define-key global-map "\C-ca" 'org-agenda)
