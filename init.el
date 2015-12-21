@@ -10,12 +10,17 @@
 		      cider
 		      evil
           evil-leader
-          evil-org))
+          evil-org
+          rainbow-delimiters))
 ;;(interactive)
 ;;(package-refresh-contents)
 (dolist (p my-packages)
   (unless (package-installed-p p)
         (package-install p)))
+
+;;enable rainbow delimiters in all programming modes
+(require 'rainbow-delimiters)
+(add-hook 'prog-mode-hook 'rainbow-delimiters-mode)
 
 ;; Enable Evil mode as defuault
 (setq evil-want-C-i-jump nil)
