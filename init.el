@@ -1,3 +1,4 @@
+; setup packaging
 (require 'package)
 (setq package-user-dir "~/.emacs.d/elpa/")
 (add-to-list 'package-archives
@@ -17,6 +18,9 @@
 (dolist (p my-packages)
   (unless (package-installed-p p)
         (package-install p)))
+
+; set visual line mode
+(setq line-move-visual nil)
 
 ;;enable rainbow delimiters in all programming modes
 (require 'rainbow-delimiters)
@@ -110,6 +114,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(org-agenda-files (quote ("~/Notes/winterrr.org")))
+ '(org-startup-truncated nil)
  '(package-selected-packages
    (quote
     (evil-org evil-leader evil cider clojure-mode projectile better-defaults))))
