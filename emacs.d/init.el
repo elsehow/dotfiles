@@ -142,7 +142,7 @@
          ; link to rss
          :html-head-extra
          "<link rel=\"alternate\" type=\"application/rss+xml\"
-                href=\"http://our.coolworld.me/my-blog.xml\"
+                href=\"http://our.coolworld.me/index.xml\"
                 title=\"my.coolworld.me RSS feed\">")))
 
 ; ox rss
