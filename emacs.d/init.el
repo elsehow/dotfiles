@@ -126,3 +126,38 @@
  )
 
 (define-key global-map "\C-ca" 'org-agenda)
+
+
+; `twf` blogging setup - compiles this-weeks-finds to ~/public_html
+(setq org-publish-project-alist
+      '(("twf"
+         ; directory of blog content
+         :base-directory "~/Projects/this-weeks-finds"
+         :html-extension "html"
+         :base-extension "org"
+         :publishing-directory "~/public_html/"
+         :publishing-function (org-html-publish-to-html)
+         :html-preamble nil
+         :html-postamble nil
+         ; link to rss
+         :html-head-extra
+         "<link rel=\"alternate\" type=\"application/rss+xml\"
+                href=\"http://our.coolworld.me/my-blog.xml\"
+                title=\"my.coolworld.me RSS feed\">")))
+
+; ox rss
+(add-to-list 'load-path "~/.emacs.d/")
+(require 'ox-rss)
+;; `twf-rss` to publish rss feed
+(add-to-list 'org-publish-project-alist
+             '("twf-rss"
+               :base-directory "~/Projects/this-weeks-finds"
+               :base-extension "org"
+               :publishing-directory "~/public_html/"
+               :publishing-function (org-rss-publish-to-rss)
+               :html-link-home "http://our.coolworld.me/"
+               :html-link-use-abs-url t
+               ; we're only using index.org to generate the rss file
+               :exclude ".*" 
+               :include ("index.org")
+               ))
