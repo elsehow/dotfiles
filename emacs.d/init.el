@@ -132,18 +132,23 @@
 (setq org-publish-project-alist
       '(("twf"
          ; directory of blog content
-         :base-directory "~/Projects/this-weeks-finds"
+         :base-directory "~/Notes/"
          :html-extension "html"
          :base-extension "org"
-         :publishing-directory "~/public_html/"
+         :exclude ".*" 
+         :include ("this-weeks-finds.org")
+         :publishing-directory "~/Projects/this-weeks-finds/dist/"
          :publishing-function (org-html-publish-to-html)
          :html-preamble nil
          :html-postamble nil
-         ; link to rss
          :html-head-extra
+         ; link to rss + css in html head
          "<link rel=\"alternate\" type=\"application/rss+xml\"
                 href=\"http://our.coolworld.me/index.xml\"
-                title=\"my.coolworld.me RSS feed\">")))
+                title=\"my.coolworld.me RSS feed\">
+          <link rel=\"stylesheet\"
+                type=\"text/css\"
+                href=\"style.css\">")))
 
 ; ox rss
 (add-to-list 'load-path "~/.emacs.d/lisp/")
@@ -151,16 +156,16 @@
 ;; `twf-rss` to publish rss feed
 (add-to-list 'org-publish-project-alist
              '("twf-rss"
-               :base-directory "~/Projects/this-weeks-finds"
+               :base-directory "~/Notes/"
                :base-extension "org"
-               :publishing-directory "~/public_html/"
+               :exclude ".*" 
+               :include ("this-weeks-finds.org")
+               :publishing-directory "~/Projects/this-weeks-finds/dist/"
                :publishing-function (org-rss-publish-to-rss)
                :html-link-home "http://our.coolworld.me/"
                :html-link-use-abs-url t
                :title "our.coolworld.me RSS"
                ; we're only using index.org to generate the rss file
-               :exclude ".*" 
-               :include ("index.org")
                ))
 
 ;; command to generate blog
