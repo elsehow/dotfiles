@@ -132,11 +132,11 @@
 (setq org-publish-project-alist
       '(("twf"
          ; directory of blog content
-         :base-directory "~/Projects/this-weeks-finds/"
+         :base-directory "~/Notes/"
          :html-extension "html"
          :base-extension "org"
          :exclude ".*" 
-         :include ("index.org")
+         :include ("this-weeks-finds.org")
          :publishing-directory "~/Projects/this-weeks-finds/dist/"
          :publishing-function (org-html-publish-to-html)
          :html-preamble nil
@@ -144,7 +144,7 @@
          :html-head-extra
          ; link to rss + css in html head
          "<link rel=\"alternate\" type=\"application/rss+xml\"
-                href=\"http://our.coolworld.me/index.xml\"
+                href=\"http://our.coolworld.me/this-weeks-finds.xml\"
                 title=\"my.coolworld.me RSS feed\">
           <link rel=\"stylesheet\"
                 type=\"text/css\"
@@ -156,10 +156,10 @@
 ;; `twf-rss` to publish rss feed
 (add-to-list 'org-publish-project-alist
              '("twf-rss"
-               :base-directory "~/Projects/this-weeks-finds"
+               :base-directory "~/Notes/"
                :base-extension "org"
                :exclude ".*" 
-               :include ("index.org")
+               :include ("this-weeks-finds.org")
                :publishing-directory "~/Projects/this-weeks-finds/dist/"
                :publishing-function (org-rss-publish-to-rss)
                :html-link-home "http://our.coolworld.me/"
