@@ -146,7 +146,7 @@
                 title=\"my.coolworld.me RSS feed\">")))
 
 ; ox rss
-(add-to-list 'load-path "~/.emacs.d/")
+(add-to-list 'load-path "~/.emacs.d/lisp/")
 (require 'ox-rss)
 ;; `twf-rss` to publish rss feed
 (add-to-list 'org-publish-project-alist
