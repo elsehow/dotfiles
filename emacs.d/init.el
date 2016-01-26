@@ -132,15 +132,15 @@
 (setq org-publish-project-alist
       '(("twf"
          ; directory of blog content
-         :base-directory "~/Notes/"
+         :base-directory "~/Projects/this-weeks-finds/"
          :html-extension "html"
          :base-extension "org"
          :exclude ".*" 
-         :include ("this-weeks-finds.org")
+         :include ("index.org")
          :publishing-directory "~/Projects/this-weeks-finds/dist/"
          :publishing-function (org-html-publish-to-html)
          :html-preamble nil
-         :html-postamble nil
+         :html-postamble "<small>all content nick merrill 2015</small>"
          :html-head-extra
          ; link to rss + css in html head
          "<link rel=\"alternate\" type=\"application/rss+xml\"
@@ -156,10 +156,10 @@
 ;; `twf-rss` to publish rss feed
 (add-to-list 'org-publish-project-alist
              '("twf-rss"
-               :base-directory "~/Notes/"
+               :base-directory "~/Projects/this-weeks-finds"
                :base-extension "org"
                :exclude ".*" 
-               :include ("this-weeks-finds.org")
+               :include ("index.org")
                :publishing-directory "~/Projects/this-weeks-finds/dist/"
                :publishing-function (org-rss-publish-to-rss)
                :html-link-home "http://our.coolworld.me/"
