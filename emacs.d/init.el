@@ -157,7 +157,17 @@
                :publishing-function (org-rss-publish-to-rss)
                :html-link-home "http://our.coolworld.me/"
                :html-link-use-abs-url t
+               :title "our.coolworld.me RSS"
                ; we're only using index.org to generate the rss file
                :exclude ".*" 
                :include ("index.org")
                ))
+
+;; command to generate blog
+(global-set-key
+ (kbd "C-c twf")
+ (lambda ()
+   (interactive)
+   (org-publish "twf")
+   (org-publish "twf-rss")))
+
