@@ -33,3 +33,6 @@ curl -fLo ~/opt/lein --create-dirs \
 
 # put emacs stuff in place
 cp -r emacs.d/* ~/.emacs.d/
+
+# add i3 config
+cp i3config ~/.i3/config
