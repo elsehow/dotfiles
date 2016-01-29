@@ -3,7 +3,7 @@ sudo apt-get install python-software-properties
 sudo add-apt-repository ppa:webupd8team/java
 sudo apt-get update
 # install our stuff
-sudo apt-get install git-core zsh vim curl make build-essential clang oracle-java8-installer unzip tree
+sudo apt-get install git-core zsh vim curl make build-essential clang oracle-java8-installer unzip tree emacs24
 
 # nodejs + npm
 curl -sL https://deb.nodesource.com/setup | sudo bash -
@@ -30,3 +30,6 @@ cp .vimrc ~/.vimrc
 # install lein
 curl -fLo ~/opt/lein --create-dirs \ 
     https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+
+# put emacs stuff in place
+cp -r emacs.d/* ~/.emacs.d/

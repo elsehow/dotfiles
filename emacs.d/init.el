@@ -13,6 +13,11 @@
           evil-leader
           evil-org
           rainbow-delimiters))
+
+;;
+;; UNCOMMENT THESE IF YOU ARE INSTALLING FOR THE FIRST TIME!!!!
+;; YOU WILL GET ERRORS OTHERWISE!!!
+;;
 ;;(interactive)
 ;;(package-refresh-contents)
 (dolist (p my-packages)
