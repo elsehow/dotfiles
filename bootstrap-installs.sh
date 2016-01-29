@@ -6,8 +6,9 @@ sudo apt-get update
 sudo apt-get install git-core zsh vim curl make build-essential clang oracle-java8-installer unzip tree emacs24
 
 # nodejs + npm
-curl -sL https://deb.nodesource.com/setup | sudo bash -
+curl -sL https://deb.nodesource.com/setup_5.x | sudo -E bash -
 sudo apt-get install -y nodejs
+sudo apt-get install -y build-essential
 
 # install + configure i3
 sudo apt-get install i3 dmenu
