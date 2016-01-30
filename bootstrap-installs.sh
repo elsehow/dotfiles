@@ -3,7 +3,7 @@ sudo apt-get install python-software-properties
 sudo add-apt-repository ppa:webupd8team/java
 sudo apt-get update
 # install our stuff
-sudo apt-get install git-core zsh vim curl make build-essential clang oracle-java8-installer unzip tree
+sudo apt-get install git-core zsh vim curl make build-essential clang oracle-java8-installer unzip tree screen
 
 # nodejs + npm
 curl -sL https://deb.nodesource.com/setup | sudo bash -
