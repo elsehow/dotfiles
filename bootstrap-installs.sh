@@ -3,11 +3,16 @@ sudo apt-get install python-software-properties
 sudo add-apt-repository ppa:webupd8team/java
 sudo apt-get update
 # install our stuff
+<<<<<<< HEAD
 sudo apt-get install git-core zsh vim curl make build-essential clang oracle-java8-installer unzip tree screen
+=======
+sudo apt-get install git-core zsh vim curl make build-essential clang oracle-java8-installer unzip tree emacs24
+>>>>>>> f2cad5b63c2b554a786e190bb9563440286b817f
 
 # nodejs + npm
-curl -sL https://deb.nodesource.com/setup | sudo bash -
+curl -sL https://deb.nodesource.com/setup_5.x | sudo -E bash -
 sudo apt-get install -y nodejs
+sudo apt-get install -y build-essential
 
 # install + configure i3
 sudo apt-get install i3 dmenu
@@ -30,3 +35,9 @@ cp .vimrc ~/.vimrc
 # install lein
 curl -fLo ~/opt/lein --create-dirs \ 
     https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+
+# put emacs stuff in place
+cp -r emacs.d/* ~/.emacs.d/
+
+# add i3 config
+cp i3config ~/.i3/config
