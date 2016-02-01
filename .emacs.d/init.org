@@ -42,13 +42,12 @@ Projectile and better-defaults are for performance.
 #+BEGIN_SRC emacs-lisp
 (defvar my-packages '(better-defaults
 		      projectile
-          ob-clojure
 		      clojure-mode
 		      cider
 		      evil
-          evil-leader
-          evil-org
-          rainbow-delimiters))
+                      evil-leader
+                      evil-org
+                      rainbow-delimiters))
 #+END_SRC
 
 ** Installing packages for the first time
@@ -114,7 +113,6 @@ Now we install each package. (Yes, we do this every time - note the =unless= sta
 Require Clojure tools - cider, etc.
 
 #+BEGIN_SRC emacs-lisp
-(require 'ob-clojure)
 (setq org-babel-clojure-backend 'cider)
 (require 'cider)
 #+END_SRC
