@@ -135,9 +135,7 @@ General org mode configuration.
 
 *** setting org agenda files
 
-If you edit this by hand, you could mess it up, so be careful.
-Your init file should contain only one such instance.
-If there is more than one, they won't work right.
+List the files that can interact with your [[http://orgmode.org/manual/Agenda-Views.html][org agenda]], one of my favorite features.
 
 #+BEGIN_SRC emacs-lisp
 
@@ -147,6 +145,10 @@ If there is more than one, they won't work right.
                             "~/Projects/dissertation/prospectus.org"
                             )))
 #+END_SRC
+
+Remember, your init file should contain only one =org-agenda-files= expression.
+If there is more than one, they won't work right.
+
 
 other configurations
 
