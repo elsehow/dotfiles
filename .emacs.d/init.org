@@ -1,5 +1,9 @@
 * introduction
-this is my emacs config
+this is an emacs config for people who like vim
+
+my eventual intention is to annotate this with lots of info about the joy and beauty of org mode.
+for people who like vim, but would like org-mode and its agenda even more :)
+
 ** first-time setup
 
 First, place this file in =~/.emacs.d/init.org=
