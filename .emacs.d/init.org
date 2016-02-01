@@ -51,7 +51,7 @@ Projectile and better-defaults are for performance.
 #+END_SRC
 
 ** Installing packages for the first time
-#+CUSTOM_ID 'installing-first-time'
+#+CUSTOM_ID: 'installing-first-time'
 
 *For first-time setup, un-comment these lines!!*
 
