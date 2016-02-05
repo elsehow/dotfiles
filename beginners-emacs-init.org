@@ -1,0 +1,280 @@
+* a (literate) emacs config for vim people
+for people who like vim, but would like org-mode and its agenda even more :)
+
+my eventual intention is to annotate this with lots of info about the joy and beauty of org mode.
+
+** first-time setup
+
+First, place the raw version of this file in =~/.emacs.d/init.org=
+
+Then do =M-x org-babel-load-file= (=M-x= means pressing =Alt= and =x=
+simultaneously).  Write =~/.emacs.d/init.org= and press enter. This should evaluate
+every piece of emacs-lisp code available here.
+
+Now, comment out the lines in [[Installing packages for the first time]], below. This will result in a faster boot time in the future.
+
+*IMPORTANT: On OS X?* If you're on OS X, you need to set the Meta key to the option key in Terminal. In OS X terminal, Preferneces > Keyboard > Use option as Meta key.
+
+#+BEGIN_QUOTE
+/FUN FACT/: =M-x= gives you a prompt, which allows you to 
+evaluate emacs lisp interactively. It's like a bash prompt, but for emacs. 
+We use it to modify our environment.
+#+END_Quote
+
+Btw, the ideomatic way to write the above command is:
+
+=M-x org-babel-load-file ~/.emacs.d/init.org RET=
+
+** shortcut for reloading
+Now, *if you make any changes to this init.org config,
+you can live-reload your changes in emacs with =C-c i=.*
+
+that's right, no restarting emacs C:
+
+#+BEGIN_SRC emacs-lisp
+(global-set-key (kbd "C-c i") 
+  (lambda() (interactive)(org-babel-load-file "~/.emacs.d/init.org")))
+#+END_SRC
+
+#+BEGIN_QUOTE
+/FUN FACT/: see how we set the key binding up there? we associated C-c i with an anonymous function.
+As you probably guessed, that expression is equivilent to doing =M-x org-babel-load-file ~/.emacs.d/init.org RET=
+#+END_QUOTE
+
+* package setup
+** Setting up melpa
+First, we set up all our packaging by adding the melpa repository.
+
+#+BEGIN_SRC emacs-lisp
+(require 'package)
+(setq package-user-dir "~/.emacs.d/elpa/")
+(add-to-list 'package-archives
+             '("melpa" . "http://melpa.milkbox.net/packages/") t)
+(package-initialize)
+#+END_SRC
+** Adding packages
+Now we can add our packages.
+
+Evil, evil-org, evil-leader are for general vim-ification.
+Rainbow delimiters, clojure-mode, cider, are all for happy lisp dev.
+Projectile and better-defaults are for performance.
+
+#+BEGIN_SRC emacs-lisp
+(defvar my-packages '(better-defaults
+		      projectile
+		      clojure-mode
+		      cider
+		      evil
+                      evil-leader
+                      evil-org
+                      rainbow-delimiters))
+#+END_SRC
+
+** Installing packages for the first time
+#+CUSTOM_ID: 'installing-first-time'
+
+These will install the packages from MELPA.
+
+After you've installed stuff for the first time, you can comment this out again.
+
+Commenting these out results in a faster boot.
+
+#+BEGIN_SRC emacs-lisp
+(interactive)
+(package-refresh-contents)
+#+END_SRC
+
+** Package setup
+Now we install each package. (Yes, we do this every time - note the =unless= statement).
+
+#+BEGIN_SRC emacs-lisp
+
+(dolist (p my-packages)
+  (unless (package-installed-p p)
+        (package-install p)))
+
+#+END_SRC
+
+* my preferences
+** defaults
+*** set visual line mode
+
+#+BEGIN_SRC emacs-lisp
+(setq line-move-visual nil)
+#+END_SRC
+
+*** enable rainbow delimiters in all programming modes
+
+#+BEGIN_SRC emacs-lisp
+(require 'rainbow-delimiters)
+(add-hook 'prog-mode-hook 'rainbow-delimiters-mode)
+#+END_SRC
+
+*** enable mouse support
+
+#+BEGIN_SRC emacs-lisp
+
+(unless window-system
+  (require 'mouse)
+  (xterm-mouse-mode t)
+  (global-set-key [mouse-4] (lambda ()
+                              (interactive)
+                              (scroll-down 1)))
+  (global-set-key [mouse-5] (lambda ()
+                              (interactive)
+                              (scroll-up 1)))
+  (defun track-mouse (e))
+  (setq mouse-sel-mode t)
+  )
+#+END_SRC
+
+** load clojure support 
+
+Require Clojure tools - cider, etc.
+
+#+BEGIN_SRC emacs-lisp
+(setq org-babel-clojure-backend 'cider)
+(require 'cider)
+#+END_SRC
+
+** org mode
+
+General org mode configuration.
+
+*** auto-indent an org-mode file
+
+#+BEGIN_SRC emacs-lisp
+
+(add-hook 'org-mode-hook
+          (lambda()
+          ; this setting interferes with org-babel, so we remove it
+            ;(local-set-key (kbd "C-c C-c") 'org-table-align)
+            (local-set-key (kbd "C-c C-f") 'org-table-calc-current-TBLFM)
+            (org-indent-mode t)))
+#+END_SRC
+
+*** setting org agenda files
+List the files that can interact with your [[http://orgmode.org/manual/Agenda-Views.html][org agenda]], one of my favorite features.
+
+Once you want to dig into the agenda features, just uncoment these lines and list your own files.
+
+#+BEGIN_SRC emacs-lisp
+
+;(custom-set-variables
+; '(org-agenda-files (quote ("~/Notes/fun.org"
+;                            "~/Notes/spring.org"
+;                            "~/Projects/dissertation/prospectus.org"
+;                           )))
+#+END_SRC
+
+Remember, your init file should contain only one =org-agenda-files= expression. If there is more than one, they won’t work right.
+
+other configurations
+
+#+BEGIN_SRC emacs-lisp
+
+ '(org-startup-truncated nil)
+ '(package-selected-packages
+   (quote
+    (evil-org evil-leader evil cider clojure-mode projectile better-defaults)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
+
+(define-key global-map "\C-ca" 'org-agenda)
+#+END_SRC
+** org-babel
+*** load language support
+We load support for python, js, and clojure.
+
+#+BEGIN_SRC emacs-lisp
+
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '(
+    (python . t)
+    (js . t)
+    (clojure . t)
+    (shell . t)
+    ))
+#+END_SRC
+
+Now we can identify these languages in org code blocks and evaluate them with =C-c=
+
+*** dangerously disable evaluation confirmation
+
+By default, when we press =C-c C-c=, org-babel asks us if we /really/ want to evaluate code on our machine.
+I throw caution to the wind and remove this warning.
+
+#+BEGIN_SRC emacs-lisp
+(setq org-confirm-babel-evaluate nil)
+#+END_SRC
+
+** vimfication
+Enable Evil mode as defuault. There's some heavy vimification going on here.
+
+#+BEGIN_SRC emacs-lisp
+
+(setq evil-want-C-i-jump nil)
+(require 'evil)
+(require 'evil-leader)
+(require 'evil-org)
+(evil-mode 1)
+;; change windows
+(eval-after-load "evil"
+  '(progn
+     (define-key evil-normal-state-map (kbd "C-h") 'evil-window-left)
+     (define-key evil-normal-state-map (kbd "C-j") 'evil-window-down)
+     (define-key evil-normal-state-map (kbd "C-k") 'evil-window-up)
+     (define-key evil-normal-state-map (kbd "C-l") 'evil-window-right)))
+;; Indents, tab as spaces
+(setq-default indent-tabs-mode nil)
+(setq default-tab-width 2)
+;; Treat wrapped line scrolling as single lines
+(define-key evil-normal-state-map (kbd "j") 'evil-next-visual-line)
+(define-key evil-normal-state-map (kbd "k") 'evil-previous-visual-line)
+  ;;; esc quits pretty much anything (like pending prompts in the minibuffer)
+(define-key evil-normal-state-map [escape] 'keyboard-quit)
+(define-key evil-visual-state-map [escape] 'keyboard-quit)
+(define-key minibuffer-local-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-ns-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-completion-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-must-match-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-isearch-map [escape] 'minibuffer-keyboard-quit)
+;; Enable smash escape (ie 'jk' and 'kj' quickly to exit insert mode)
+(define-key evil-insert-state-map "k" #'cofi/maybe-exit-kj)
+(evil-define-command cofi/maybe-exit-kj ()
+  :repeat change
+  (interactive)
+  (let ((modified (buffer-modified-p)))
+    (insert "k")
+    (let ((evt (read-event (format "Insert %c to exit insert state" ?j)
+                           nil 0.5)))
+      (cond
+       ((null evt) (message ""))
+       ((and (integerp evt) (char-equal evt ?j))
+        (delete-char -1)
+        (set-buffer-modified-p modified)
+        (push 'escape unread-command-events))
+       (t (setq unread-command-events (append unread-command-events
+                                              (list evt))))))))
+(define-key evil-insert-state-map "j" #'cofi/maybe-exit-jk)
+(evil-define-command cofi/maybe-exit-jk ()
+  :repeat change
+  (interactive)
+  (let ((modified (buffer-modified-p)))
+    (insert "j")
+    (let ((evt (read-event (format "Insert %c to exit insert state" ?k)
+               nil 0.5)))
+      (cond
+       ((null evt) (message ""))
+       ((and (integerp evt) (char-equal evt ?k))
+        (delete-char -1)
+        (set-buffer-modified-p modified)
+        (push 'escape unread-command-events))
+       (t (setq unread-command-events (append unread-command-events
+                                              (list evt))))))))
+#+END_SRC
