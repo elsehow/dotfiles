@@ -1,7 +1,5 @@
 * introduction
-
-my emacs config C:
-
+this is my emacs config
 ** first-time setup
 
 First, place this file in =~/.emacs.d/init.org=
@@ -53,7 +51,7 @@ Projectile and better-defaults are for performance.
 #+END_SRC
 
 ** Installing packages for the first time
-#+CUSTOM_ID: 'installing-first-time'
+#+CUSTOM_ID 'installing-first-time'
 
 *For first-time setup, un-comment these lines!!*
 
@@ -109,16 +107,6 @@ Now we install each package. (Yes, we do this every time - note the =unless= sta
   (setq mouse-sel-mode t)
   )
 #+END_SRC
-
-** load clojure support clojure
-
-Require Clojure tools - cider, etc.
-
-#+BEGIN_SRC emacs-lisp
-(setq org-babel-clojure-backend 'cider)
-(require 'cider)
-#+END_SRC
-
 ** org mode
 
 General org mode configuration.
@@ -134,25 +122,24 @@ General org mode configuration.
             (local-set-key (kbd "C-c C-f") 'org-table-calc-current-TBLFM)
             (org-indent-mode t)))
 #+END_SRC
+** org agenda 
+*** my org agenda files
 
-*** setting org agenda files
-
-List the files that can interact with your [[http://orgmode.org/manual/Agenda-Views.html][org agenda]], one of my favorite features.
+If you edit this by hand, you could mess it up, so be careful.
+Your init file should contain only one such instance.
+If there is more than one, they won't work right.
 
 #+BEGIN_SRC emacs-lisp
 
 (custom-set-variables
  '(org-agenda-files (quote ("~/Notes/fun.org"
                             "~/Notes/spring.org"
+                            "~/Notes/live interfaces.org"
                             "~/Projects/dissertation/prospectus.org"
                             )))
 #+END_SRC
 
-Remember, your init file should contain only one =org-agenda-files= expression.
-If there is more than one, they won't work right.
-
-
-other configurations
+*** other org configs
 
 #+BEGIN_SRC emacs-lisp
 
@@ -169,7 +156,16 @@ other configurations
 
 (define-key global-map "\C-ca" 'org-agenda)
 #+END_SRC
+
 ** org-babel
+*** load clojure support clojure
+
+Require Clojure tools - cider, etc.
+
+#+BEGIN_SRC emacs-lisp
+(setq org-babel-clojure-backend 'cider)
+(require 'cider)
+#+END_SRC
 *** load language support
 We load support for python, js, and clojure.
 
@@ -262,12 +258,10 @@ Enable Evil mode as defuault. There's some heavy vimification going on here.
                                               (list evt))))))))
 #+END_SRC
 ** publishing
-
 C-c twf will publish ~/Notes/this-weeks-finds.org as an html file, with RSS. 
 
+*** publishing html
 #+BEGIN_SRC emacs-lisp
-
-; `twf` blogging setup - compiles this-weeks-finds to ~/public_html
 (setq org-publish-project-alist
       '(("twf"
          ; directory of blog content
@@ -278,17 +272,20 @@ C-c twf will publish ~/Notes/this-weeks-finds.org as an html file, with RSS.
          :include ("this-weeks-finds.org")
          :publishing-directory "~/Projects/this-weeks-finds/dist/"
          :publishing-function (org-html-publish-to-html)
-         :html-preamble nil
-         :html-postamble "<small>all content nick merrill 2015</small>"
+         :html-preamble "<h1>this week in biosensing</h1><a href=\"this-weeks-finds.xml\">rss</p>"
+         :html-postamble "<small>visual space has essentially no owner. 2015</small>"
          :html-head-extra
          ; link to rss + css in html head
          "<link rel=\"alternate\" type=\"application/rss+xml\"
-                href=\"http://our.coolworld.me/this-weeks-finds.xml\"
+                href=\"http://verdigris.ischool.berkeley.edu/this-weeks-finds.xml\"
                 title=\"my.coolworld.me RSS feed\">
           <link rel=\"stylesheet\"
                 type=\"text/css\"
                 href=\"style.css\">")))
+#+END_SRC
 
+*** publishing rss
+#+BEGIN_SRC emacs-lisp
 ; ox rss
 (add-to-list 'load-path "~/.emacs.d/lisp/")
 (require 'ox-rss)
@@ -301,13 +298,14 @@ C-c twf will publish ~/Notes/this-weeks-finds.org as an html file, with RSS.
                :include ("this-weeks-finds.org")
                :publishing-directory "~/Projects/this-weeks-finds/dist/"
                :publishing-function (org-rss-publish-to-rss)
-               :html-link-home "http://our.coolworld.me/"
+               :html-link-home "http://verdigris.ischool.berkeley.edu/"
                :html-link-use-abs-url t
-               :title "our.coolworld.me RSS"
-               ; we're only using index.org to generate the rss file
+               :title "this week in biosensing RSS"
                ))
+#+END_SRC
 
-;; command to generate blog
+*** generating the blog with =C-c twf=
+#+BEGIN_SRC emacs-lisp
 (global-set-key
  (kbd "C-c twf")
  (lambda ()
