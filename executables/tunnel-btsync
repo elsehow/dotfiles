@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# tunnels verdigris's 8888 traffic to my 8888 traffic, and vice versa
+ssh -N ffff@verdigris.ischool.berkeley.edu -L 8888:localhost:8888
