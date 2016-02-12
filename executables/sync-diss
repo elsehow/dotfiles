@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DIR=/home/ffff/Projects/dissertation
+DIR=/Users/ffff/Projects/dissertation
 
 cd "$DIR"
 git pull -u origin master
