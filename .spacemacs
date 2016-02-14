@@ -29,7 +29,9 @@ values."
      emacs-lisp
      ;; git
      ;; markdown
+     shell
      org
+     clojure
      ;; (shell :variables
      ;;        shell-default-height 30
      ;;        shell-default-position 'bottom)
@@ -96,7 +98,8 @@ values."
    ;; List of themes, the first of the list is loaded when spacemacs starts.
    ;; Press <SPC> T n to cycle to the next theme in the list (works great
    ;; with 2 themes variants, one dark and one light)
-   dotspacemacs-themes '(spacemacs-dark
+   dotspacemacs-themes '(zenburn
+                         spacemacs-dark
                          spacemacs-light
                          solarized-light
                          solarized-dark
@@ -247,6 +250,8 @@ This function is called at the very end of Spacemacs initialization after
 layers configuration. You are free to put any user code."
   )
 
+(setq clojure-enable-fancify-symbols t)
+
 ;; Do not write anything past this comment. This is where Emacs will
 ;; auto-generate custom variable definitions.
 (custom-set-variables
@@ -256,7 +261,7 @@ layers configuration. You are free to put any user code."
  ;; If there is more than one, they won't work right.
  '(org-agenda-files
    (quote
-    ("~/Projects/dissertation/prospectus.org" "~/Notes/fun.org" "~/Notes/spring.org"))))
+    ("~/Notes/lst-days.org" "~/Projects/dissertation/prospectus.org" "~/Notes/fun.org" "~/Notes/spring.org"))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
