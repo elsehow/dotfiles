@@ -1,8 +1,15 @@
 set number
-set tabstop=2 softtabstop=0 expandtab shiftwidth=2 smarttab
+syntax on
 
-" set markdown syntax
-au BufNewFile,BufFilePre,BufRead *.md set filetype=markdown
+hi CursorLineNR cterm=bold
+augroup CLNRSet
+    autocmd! ColorScheme * hi CursorLineNR cterm=bold
+augroup END
 
-noremap <C-tab> :tabn<CR>
+call plug#begin('~/.vim/plugged')
+Plug 'bling/vim-airline'
+Plug 'junegunn/goyo.vim'
 
+set tabstop=2
+set shiftwidth=2
+set noexpandtab
