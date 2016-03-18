@@ -29,7 +29,6 @@ values."
      emacs-lisp
      ;; git
      ;; markdown
-     shell
      org
      clojure
      ;; (shell :variables
@@ -248,9 +247,20 @@ in `dotspacemacs/user-config'."
   "Configuration function for user code.
 This function is called at the very end of Spacemacs initialization after
 layers configuration. You are free to put any user code."
-  )
+
 
 (setq clojure-enable-fancify-symbols t)
+
+(setq-default indent-tabs-mode nil)
+(setq tab-width 2)
+;(setq js-indent-level 2)
+(defvaralias 'c-basic-offset 'tab-width)
+(defvaralias 'cperl-indent-level 'tab-width)
+(defvaralias 'js-indent-level 'tab-width)
+
+;(setq reftex-default-bibliography '("/Users/ffff/Projects/bsn-2016"))
+
+)
 
 ;; Do not write anything past this comment. This is where Emacs will
 ;; auto-generate custom variable definitions.
@@ -259,9 +269,51 @@ layers configuration. You are free to put any user code."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(ansi-color-faces-vector
+   [default default default italic underline success warning error])
+ '(compilation-message-face (quote default))
+ '(cua-global-mark-cursor-color "#2aa198")
+ '(cua-normal-cursor-color "#839496")
+ '(cua-overwrite-cursor-color "#b58900")
+ '(cua-read-only-cursor-color "#859900")
+ '(highlight-changes-colors (quote ("#FD5FF0" "#AE81FF")))
+ '(highlight-symbol-colors
+   (--map
+    (solarized-color-blend it "#002b36" 0.25)
+    (quote
+     ("#b58900" "#2aa198" "#dc322f" "#6c71c4" "#859900" "#cb4b16" "#268bd2"))))
+ '(highlight-symbol-foreground-color "#93a1a1")
+ '(highlight-tail-colors
+   (quote
+    (("#3E3D31" . 0)
+     ("#67930F" . 20)
+     ("#349B8D" . 30)
+     ("#21889B" . 50)
+     ("#968B26" . 60)
+     ("#A45E0A" . 70)
+     ("#A41F99" . 85)
+     ("#3E3D31" . 100))))
+ '(hl-bg-colors
+   (quote
+    ("#7B6000" "#8B2C02" "#990A1B" "#93115C" "#3F4D91" "#00629D" "#00736F" "#546E00")))
+ '(hl-fg-colors
+   (quote
+    ("#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36")))
+ '(magit-diff-use-overlays nil)
  '(org-agenda-files
    (quote
-    ("~/Notes/lst-days.org" "~/Projects/dissertation/prospectus.org" "~/Notes/fun.org" "~/Notes/spring.org"))))
+    ("~/Projects/swarma/notes.org" "~/Projects/bsn-2016/bsn-2016.org" "~/Projects/dissertation/dissertation.org" "~/Notes/lst-days.org" "~/Projects/dissertation/prospectus.org" "~/Notes/spring.org")))
+ '(pos-tip-background-color "#A6E22E")
+ '(pos-tip-foreground-color "#272822")
+ '(smartrep-mode-line-active-bg (solarized-color-blend "#859900" "#073642" 0.2))
+ '(term-default-bg-color "#002b36")
+ '(term-default-fg-color "#839496")
+ '(weechat-color-list
+   (unspecified "#272822" "#3E3D31" "#A20C41" "#F92672" "#67930F" "#A6E22E" "#968B26" "#E6DB74" "#21889B" "#66D9EF" "#A41F99" "#FD5FF0" "#349B8D" "#A1EFE4" "#F8F8F2" "#F8F8F0"))
+ '(xterm-color-names
+   ["#073642" "#dc322f" "#859900" "#b58900" "#268bd2" "#d33682" "#2aa198" "#eee8d5"])
+ '(xterm-color-names-bright
+   ["#002b36" "#cb4b16" "#586e75" "#657b83" "#839496" "#6c71c4" "#93a1a1" "#fdf6e3"]))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
