@@ -25,19 +25,21 @@ values."
      ;; <M-m f e R> (Emacs style) to install them.
      ;; ----------------------------------------------------------------
      auto-completion
+     ;;haskell
      ;; better-defaults
      emacs-lisp
      ;; git
      markdown
      org
+     ;; deft
      clojure
-     ;; (shell :variables
-     ;;        shell-default-height 30
-     ;;        shell-default-position 'bottom)
+     (shell :variables
+            shell-default-height 30
+            shell-default-position 'bottom)
      ;; spell-checking
      ;; syntax-checking
+     ;; ipython-notebook
      ;; version-control
-     ipython-notebook
      )
    ;; List of additional packages that will be installed without being
    ;; wrapped in a layer. If you need some configuration for these
@@ -110,8 +112,8 @@ values."
    dotspacemacs-colorize-cursor-according-to-state t
    ;; Default font. `powerline-scale' allows to quickly tweak the mode-line
    ;; size to make separators look not too crappy.
-   dotspacemacs-default-font '("Fira Code"
-                               :size 14
+   dotspacemacs-default-font '("mononoki"
+                               :size 18
                                :weight normal
                                :width normal
                                :powerline-scale 1.1)
@@ -249,6 +251,7 @@ in `dotspacemacs/user-config'."
 This function is called at the very end of Spacemacs initialization after
 layers configuration. You are free to put any user code."
 
+(setq org-latex-with-hyperref nil)
 
 (setq clojure-enable-fancify-symbols t)
 
@@ -310,7 +313,7 @@ layers configuration. You are free to put any user code."
     ("#CC9393" "#DFAF8F" "#F0DFAF" "#7F9F7F" "#BFEBBF" "#93E0E3" "#94BFF3" "#DC8CC3")))
  '(org-agenda-files
    (quote
-    ("~/Notes/riversimple.org" "~/Notes/prospectus.org" "~/Notes/lst-days.org" "~/Notes/spring.org")))
+    ("~/Notes/summer.org" "~/Notes/riversimple.org" "~/Notes/prospectus.org" "~/Notes/lst-days.org" "~/Notes/spring.org")))
  '(pos-tip-background-color "#A6E22E")
  '(pos-tip-foreground-color "#272822")
  '(smartrep-mode-line-active-bg (solarized-color-blend "#859900" "#073642" 0.2))
