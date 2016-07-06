@@ -251,20 +251,29 @@ in `dotspacemacs/user-config'."
 This function is called at the very end of Spacemacs initialization after
 layers configuration. You are free to put any user code."
 
-(setq org-latex-with-hyperref nil)
+  ;; (require 'org-ref)
+  ; (defvar bib-path "/Users/ffff/Notes/library.bib")
+  ; (setq reftex-bibpath-environment-variables
+  ;       '("/Users/ffff/Library/TeXShop/bin"))
+  (setq reftex-default-bibliography '("/Users/ffff/Notes/library.bib"))
+  (setq org-ref-default-bibliography '("/Users/ffff/Notes/library.bib"))
+  (setq bibtex-completion-bibliography "/Users/ffff/Notes/library.bib")
+  (setq bibtex-completion-pdf-field "File")
+  (require 'org-ref)
 
-(setq clojure-enable-fancify-symbols t)
+  (setq org-latex-with-hyperref nil)
 
-(setq org-deadline-warning-days 7)
+  (setq clojure-enable-fancify-symbols t)
 
-(setq-default indent-tabs-mode nil)
-(setq tab-width 2)
-;(setq js-indent-level 2)
-(defvaralias 'c-basic-offset 'tab-width)
-(defvaralias 'cperl-indent-level 'tab-width)
-(defvaralias 'js-indent-level 'tab-width)
+  (setq org-deadline-warning-days 7)
 
-;(setq reftex-default-bibliography '("/Users/ffff/Projects/bsn-2016"))
+  (setq-default indent-tabs-mode nil)
+  (setq tab-width 2)
+                                        ;(setq js-indent-level 2)
+  (defvaralias 'c-basic-offset 'tab-width)
+  (defvaralias 'cperl-indent-level 'tab-width)
+  (defvaralias 'js-indent-level 'tab-width)
+
 
 )
 
@@ -313,7 +322,7 @@ layers configuration. You are free to put any user code."
     ("#CC9393" "#DFAF8F" "#F0DFAF" "#7F9F7F" "#BFEBBF" "#93E0E3" "#94BFF3" "#DC8CC3")))
  '(org-agenda-files
    (quote
-    ("~/Notes/summer.org" "~/Notes/riversimple.org" "~/Notes/prospectus.org" "~/Notes/lst-days.org" "~/Notes/spring.org")))
+    ("~/Notes/inspiration-pt.org" "~/test.org" "~/Notes/summer.org" "~/Notes/riversimple.org" "~/Notes/prospectus.org" "~/Notes/lst-days.org" "~/Notes/spring.org")))
  '(pos-tip-background-color "#A6E22E")
  '(pos-tip-foreground-color "#272822")
  '(smartrep-mode-line-active-bg (solarized-color-blend "#859900" "#073642" 0.2))
