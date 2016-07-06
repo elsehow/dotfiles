@@ -261,10 +261,10 @@ layers configuration. You are free to put any user code."
   (setq bibtex-completion-bibliography "/Users/ffff/Notes/library.bib")
   (setq bibtex-completion-pdf-field "File")
   ;(require 'org-ref)
-  ; (setq org-latex-pdf-process (quote ("pdflatex --batch %f"
-  ;                                     "bibtex %b"
-  ;                                     "pdflatex --batch %f"
-  ;                                     "pdflatex --batch %f")))
+  (setq org-latex-pdf-process (quote ("pdflatex --batch %f"
+                                      "bibtex %b"
+                                      "pdflatex --batch %f"
+                                      "pdflatex --batch %f")))
 
 
   (setq org-latex-with-hyperref nil)
