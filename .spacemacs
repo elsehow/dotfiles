@@ -25,7 +25,7 @@ values."
      ;; <M-m f e R> (Emacs style) to install them.
      ;; ----------------------------------------------------------------
      auto-completion
-     ;;haskell
+     ;;haskel
      ;; better-defaults
      emacs-lisp
      ;; git
@@ -255,15 +255,16 @@ layers configuration. You are free to put any user code."
   ; (defvar bib-path "/Users/ffff/Notes/library.bib")
   ; (setq reftex-bibpath-environment-variables
   ;       '("/Users/ffff/Library/TeXShop/bin"))
+  (setq dotspacemacs-additional-packages '(org-ref))
   (setq reftex-default-bibliography '("/Users/ffff/Notes/library.bib"))
   (setq org-ref-default-bibliography '("/Users/ffff/Notes/library.bib"))
   (setq bibtex-completion-bibliography "/Users/ffff/Notes/library.bib")
   (setq bibtex-completion-pdf-field "File")
-  (require 'org-ref)
-  (setq org-latex-pdf-process (quote ("pdftex --batch %f"
+  ;(require 'org-ref)
+  (setq org-latex-pdf-process (quote ("pdflatex --batch %f"
                                       "bibtex %b"
-                                      "pdftex --batch %f"
-                                      "pdftex --batch %f")))
+                                      "pdflatex --batch %f"
+                                      "pdflatex --batch %f")))
 
 
   (setq org-latex-with-hyperref nil)
@@ -327,7 +328,7 @@ layers configuration. You are free to put any user code."
     ("#CC9393" "#DFAF8F" "#F0DFAF" "#7F9F7F" "#BFEBBF" "#93E0E3" "#94BFF3" "#DC8CC3")))
  '(org-agenda-files
    (quote
-    ("~/test.org" "~/Notes/summer.org" "~/Notes/riversimple.org" "~/Notes/prospectus.org" "~/Notes/lst-days.org" "~/Notes/spring.org")))
+    ("~/Notes/inspiration-pt.org" "~/test.org" "~/Notes/summer.org" "~/Notes/riversimple.org" "~/Notes/prospectus.org" "~/Notes/lst-days.org" "~/Notes/spring.org")))
  '(pos-tip-background-color "#A6E22E")
  '(pos-tip-foreground-color "#272822")
  '(smartrep-mode-line-active-bg (solarized-color-blend "#859900" "#073642" 0.2))
