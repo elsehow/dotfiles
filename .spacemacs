@@ -32,8 +32,10 @@ values."
      markdown
      org
      bibtex
+     themes-megapack
      ;; deft
      clojure
+     ipython-notebook
      (shell :variables
             shell-default-height 30
             shell-default-position 'bottom)
@@ -101,7 +103,7 @@ values."
    ;; List of themes, the first of the list is loaded when spacemacs starts.
    ;; Press <SPC> T n to cycle to the next theme in the list (works great
    ;; with 2 themes variants, one dark and one light)
-   dotspacemacs-themes '(leuven
+   dotspacemacs-themes '(tao-yang
                          solarized-light
                          solarized-dark
                          monokai
@@ -114,7 +116,7 @@ values."
    ;; Default font. `powerline-scale' allows to quickly tweak the mode-line
    ;; size to make separators look not too crappy.
    dotspacemacs-default-font '("mononoki"
-                               :size 18
+                               :size 12
                                :weight normal
                                :width normal
                                :powerline-scale 1.1)
@@ -252,34 +254,32 @@ in `dotspacemacs/user-config'."
 This function is called at the very end of Spacemacs initialization after
 layers configuration. You are free to put any user code."
 
-  ; (defvar bib-path "/Users/ffff/Notes/library.bib")
-  ; (setq reftex-bibpath-environment-variables
-  ;       '("/Users/ffff/Library/TeXShop/bin"))
   (setq dotspacemacs-additional-packages '(org-ref))
-  (setq reftex-default-bibliography '("/Users/ffff/Notes/library.bib"))
-  (setq org-ref-default-bibliography '("/Users/ffff/Notes/library.bib"))
-  (setq bibtex-completion-bibliography "/Users/ffff/Notes/library.bib")
+
+  ;; bibtex stuff
+  (setq reftex-default-bibliography
+        '("/Users/ffff/Notes/library.bib"))
+  (setq org-ref-default-bibliography
+        '("/Users/ffff/Notes/library.bib"))
+  (setq bibtex-completion-bibliography
+        "/Users/ffff/Notes/library.bib")
   (setq bibtex-completion-pdf-field "File")
-  ;(require 'org-ref)
   (setq org-latex-pdf-process (quote ("pdflatex --batch %f"
                                       "bibtex %b"
                                       "pdflatex --batch %f"
                                       "pdflatex --batch %f")))
-
-
   (setq org-latex-with-hyperref nil)
 
-  (setq clojure-enable-fancify-symbols t)
-
+  ;; pretentions stuff
+  (setq sp-highlight-pair-overlay nil)
   (setq org-deadline-warning-days 7)
+  (setq clojure-enable-fancify-symbols t)
 
   (setq-default indent-tabs-mode nil)
   (setq tab-width 2)
-                                        ;(setq js-indent-level 2)
   (defvaralias 'c-basic-offset 'tab-width)
   (defvaralias 'cperl-indent-level 'tab-width)
   (defvaralias 'js-indent-level 'tab-width)
-
 
 )
 
@@ -290,15 +290,25 @@ layers configuration. You are free to put any user code."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(Linum-format "%7i ")
  '(ansi-color-faces-vector
    [default default default italic underline success warning error])
  '(ansi-color-names-vector
    ["#3F3F3F" "#CC9393" "#7F9F7F" "#F0DFAF" "#8CD0D3" "#DC8CC3" "#93E0E3" "#DCDCCC"])
+ '(ansi-term-color-vector
+   [unspecified "#FFFFFF" "#d15120" "#5f9411" "#d2ad00" "#6b82a7" "#a66bab" "#6b82a7" "#505050"])
+ '(background-color "#202020")
+ '(background-mode dark)
  '(compilation-message-face (quote default))
  '(cua-global-mark-cursor-color "#2aa198")
  '(cua-normal-cursor-color "#839496")
  '(cua-overwrite-cursor-color "#b58900")
  '(cua-read-only-cursor-color "#859900")
+ '(cursor-color "#cccccc")
+ '(fci-rule-character-color "#202020")
+ '(fci-rule-color "#202020" t)
+ '(foreground-color "#cccccc")
+ '(fringe-mode 4 nil (fringe))
  '(highlight-changes-colors (quote ("#FD5FF0" "#AE81FF")))
  '(highlight-symbol-colors
    (--map
@@ -322,15 +332,21 @@ layers configuration. You are free to put any user code."
  '(hl-fg-colors
    (quote
     ("#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36")))
+ '(linum-format " %7i " t)
  '(magit-diff-use-overlays nil)
+ '(main-line-color1 "#1E1E1E")
+ '(main-line-color2 "#111111")
+ '(main-line-separator-style (quote chamfer))
  '(nrepl-message-colors
    (quote
     ("#CC9393" "#DFAF8F" "#F0DFAF" "#7F9F7F" "#BFEBBF" "#93E0E3" "#94BFF3" "#DC8CC3")))
  '(org-agenda-files
    (quote
-    ("~/Notes/inspiration-pt.org" "~/test.org" "~/Notes/summer.org" "~/Notes/riversimple.org" "~/Notes/prospectus.org" "~/Notes/lst-days.org" "~/Notes/spring.org")))
+    ("~/Notes/brain-sensor-material-matter.org" "~/Notes/quantified-future-self.org" "~/Notes/what-can-sensors-say.org" "~/Notes/fall.org" "~/Notes/riversimple.org")))
  '(pos-tip-background-color "#A6E22E")
  '(pos-tip-foreground-color "#272822")
+ '(powerline-color1 "#1E1E1E")
+ '(powerline-color2 "#111111")
  '(smartrep-mode-line-active-bg (solarized-color-blend "#859900" "#073642" 0.2))
  '(term-default-bg-color "#002b36")
  '(term-default-fg-color "#839496")
@@ -367,5 +383,6 @@ layers configuration. You are free to put any user code."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(default ((t (:family "mononoki" :foundry "nil" :slant normal :weight normal :height 180 :width normal))))
  '(company-tooltip-common ((t (:inherit company-tooltip :weight bold :underline nil))))
  '(company-tooltip-common-selection ((t (:inherit company-tooltip-selection :weight bold :underline nil)))))
