@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+#
+# ghostty-theme — set the Ghostty theme and re-sync everything in one shot:
+#   • writes `theme = <name>` into the Ghostty config
+#   • reloads the sketchybar (re-derives its palette + font from the new theme)
+#   • reloads live Ghostty windows (if Ghostty is frontmost)
+#
+# Usage:
+#   ghostty-theme "<theme name>"    set the theme (quotes optional; multi-word ok)
+#   ghostty-theme --list            list available theme names
+#   ghostty-theme --current         show the currently configured theme
+#
+# After running, `sketchybar --reload` is done for you. Pairs with
+# ~/.config/sketchybar/generate-theme.sh, which reads `ghostty +show-config`.
+set -euo pipefail
+
+GB="/Applications/Ghostty.app/Contents/MacOS/ghostty"
+CFG="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+
+# Available theme names, with the trailing " (resources)"/" (user)" tag stripped.
+themes() { "$GB" +list-themes --plain 2>/dev/null | sed -E 's/ \((resources|user)\)$//'; }
+
+case "${1:-}" in
+  ""|-h|--help)
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -l|--list)
+    themes; exit 0 ;;
+  --current)
+    cur="$("$GB" +show-config 2>/dev/null | grep -m1 '^theme = ' | sed 's/^theme = //' || true)"
+    [ -n "$cur" ] && echo "$cur" || echo "(no theme set)"
+    exit 0 ;;
+esac
+
+theme="$*"   # join args so unquoted multi-word names work too
+
+# Validate (case-insensitive, whole-line) and normalize to the canonical casing.
+match="$(themes | grep -ixF "$theme" || true)"
+if [ -z "$match" ]; then
+  echo "unknown theme: '$theme'" >&2
+  near="$(themes | grep -iF "$theme" | head -10 || true)"
+  [ -n "$near" ] && { echo "did you mean:" >&2; echo "$near" | sed 's/^/  /' >&2; }
+  echo "(run: ghostty-theme --list)" >&2
+  exit 1
+fi
+theme="$match"
+
+# Update (or append) the theme line. awk with -v avoids any regex/escaping issues
+# with theme names that contain spaces or punctuation.
+tmp="$(mktemp)"
+if grep -q '^theme = ' "$CFG"; then
+  awk -v t="theme = $theme" '/^theme = / && !d {print t; d=1; next} {print}' "$CFG" > "$tmp"
+  mv "$tmp" "$CFG"
+else
+  cp "$CFG" "$tmp"; printf '\ntheme = %s\n' "$theme" >> "$tmp"; mv "$tmp" "$CFG"
+fi
+
+# Re-sync the bar — generate-theme.sh re-reads the (now updated) ghostty config.
+sketchybar --reload >/dev/null 2>&1 || true
+
+# Reload live Ghostty windows via its reload_config keybind (⌘⇧,). Only when
+# Ghostty is frontmost, so we never misfire the keystroke into another app.
+front="$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null || true)"
+if printf '%s' "$front" | grep -qi ghostty; then
+  osascript -e 'tell application "System Events" to keystroke "," using {command down, shift down}' 2>/dev/null || true
+  note="live windows reloaded"
+else
+  note="reload open windows with ⌘⇧, (new windows already use it)"
+fi
+
+echo "✔ Ghostty theme → ${theme}"
+echo "✔ sketchybar re-synced · ${note}"

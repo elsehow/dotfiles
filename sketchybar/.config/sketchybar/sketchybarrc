@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+#
+# sketchybar config for AeroSpace — workspace indicator.
+# Goal: see clearly which workspace (desktop) is focused.
+#
+# Styling (colors, font, opacity, blur) is derived from the live Ghostty config
+# by generate-theme.sh → theme.env, so the bar tracks your terminal's theme.
+# Re-run `sketchybar --reload` after changing your Ghostty config to re-sync.
+#
+# Item order matches the cmd-<key> bindings in ~/.aerospace.toml, left to right:
+#   🕹️(cmd-`)  mf(cmd-1)  xrisk(cmd-2)  relevantbench(cmd-3)  4..9  ꩜(cmd-0)
+# Named workspaces are always shown; numbered scratch spaces (4-9) appear only
+# when they hold windows (or are focused). Highlight logic: plugins/aerospace.sh.
+
+CONFIG_DIR="$HOME/.config/sketchybar"
+PLUGIN_DIR="$CONFIG_DIR/plugins"
+
+# ── Theme from Ghostty (font, colors, opacity, blur) ─────────────────────────
+"$CONFIG_DIR/generate-theme.sh"
+source "$CONFIG_DIR/theme.env"
+: "${GHOSTTY_FONT:=Menlo}" "${BAR_COLOR:=0xff1e1e2e}" "${BAR_BLUR:=0}" "${ACCENT_FG:=0xffe1e3e4}"
+: "${BORDER_ACTIVE:=$ACCENT_FG}" "${BORDER_INACTIVE:=0x00000000}"
+
+# Re-tint the JankyBorders window borders to the (possibly new) theme color.
+# `borders` updates its running daemon when re-invoked, so this propagates live
+# on every `sketchybar --reload` (e.g. via the ghostty-theme command).
+if command -v borders >/dev/null 2>&1; then
+  borders active_color=$BORDER_ACTIVE inactive_color=$BORDER_INACTIVE width=6 >/dev/null 2>&1 &
+fi
+
+FONT_LABEL="$GHOSTTY_FONT:Regular:14.0"
+FONT_ICON="$GHOSTTY_FONT:Bold:14.0"
+
+# Workspace items, in keyboard order. ꩜ is an emoji workspace name.
+WORKSPACES=(mf xrisk relevantbench 4 5 6 7 8 9 "꩜")
+
+# ── Bar (floating + rounded, to match aerospace windows) ─────────────────────
+# The bar floats with rounded corners to match window rounding.
+#
+# Vertical float is symmetric: BAR_GAP_TOP above the bar == the gap below it.
+# NOTE: keep `outer.top` in ~/.aerospace.toml equal to
+#   (BAR_GAP_TOP + BAR_HEIGHT + BAR_GAP_TOP)
+# so the gap below the bar equals the gap above it.
+BAR_HEIGHT=32
+BAR_MARGIN=25    # side inset of the bar (match gaps.outer.left/right in ~/.aerospace.toml)
+BAR_GAP_TOP=12   # vertical float — same gap above the bar AND below it (window top)
+BAR_CORNER=12    # match your macOS window corner radius (tune to taste)
+
+sketchybar --bar \
+  height=$BAR_HEIGHT \
+  position=top \
+  y_offset=$BAR_GAP_TOP \
+  margin=$BAR_MARGIN \
+  corner_radius=$BAR_CORNER \
+  padding_left=14 \
+  padding_right=14 \
+  color=$BAR_COLOR \
+  blur_radius=$BAR_BLUR \
+  topmost=window
+
+# ── Defaults ─────────────────────────────────────────────────────────────────
+sketchybar --default \
+  icon.font="$FONT_ICON" \
+  icon.color=$ACCENT_FG \
+  label.font="$FONT_LABEL" \
+  label.color=$ACCENT_FG \
+  padding_left=4 \
+  padding_right=4 \
+  background.corner_radius=6 \
+  background.height=22
+
+# ── Workspaces (left) ────────────────────────────────────────────────────────
+# AeroSpace fires this event on every workspace change (wired in ~/.aerospace.toml).
+sketchybar --add event aerospace_workspace_change
+
+for sid in "${WORKSPACES[@]}"; do
+  sketchybar --add item space."$sid" left \
+    --subscribe space."$sid" aerospace_workspace_change \
+    --set space."$sid" \
+      icon="$sid" \
+      icon.padding_left=8 \
+      icon.padding_right=8 \
+      label.drawing=off \
+      background.drawing=off \
+      click_script="aerospace workspace $sid" \
+      script="$PLUGIN_DIR/aerospace.sh"
+done
+
+# ── Right side: clock (in the Ghostty font, monospace) ───────────────────────
+sketchybar --add item clock right \
+  --set clock \
+    update_freq=10 \
+    icon.drawing=off \
+    label.font="$FONT_LABEL" \
+    label.color=$ACCENT_FG \
+    script="$PLUGIN_DIR/clock.sh"
+
+# ── Right side: battery (LAPTOPS ONLY) ───────────────────────────────────────
+# Desktops (Mac Studio, Mac mini) have no battery, so this self-adapts: the item
+# is only added on machines that report an internal battery. One config, every
+# machine. The glyphs in battery.sh are Nerd Font (Material Design) icons, so the
+# item uses a Nerd Font (font-hack-nerd-font, in the Brewfile) for its icon.
+if pmset -g batt 2>/dev/null | grep -q "InternalBattery"; then
+  sketchybar --add item battery right \
+    --set battery \
+      update_freq=30 \
+      icon.font="Hack Nerd Font:Regular:15.0" \
+      icon.color=$ACCENT_FG \
+      label.font="$FONT_LABEL" \
+      label.color=$ACCENT_FG \
+      script="$PLUGIN_DIR/battery.sh"
+fi
+
+# ── Finalize ─────────────────────────────────────────────────────────────────
+sketchybar --update
+
+# Paint initial focused/visibility state immediately.
+sketchybar --trigger aerospace_workspace_change
