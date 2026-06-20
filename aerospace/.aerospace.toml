@@ -56,7 +56,7 @@ automatically-unhide-macos-hidden-apps = true
 # even when they are invisible.
 # This config version is only available since 'config-version = 2'
 # Fallback value (if you omit the key): persistent-workspaces = []
-persistent-workspaces = ["1", "2", "3", "꩜"]
+persistent-workspaces = ["1", "2", "3", "꩜", "☌"]
 
 # A callback that runs every time binding mode changes
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
@@ -145,9 +145,9 @@ on-mode-changed = []
     cmd-equal = 'resize smart +50'
 
     # See: https://nikitabobko.github.io/AeroSpace/commands#workspace
-    cmd-1 = 'workspace mf'
-    cmd-2 = 'workspace xrisk'
-    cmd-3 = 'workspace relevantbench'
+    cmd-1 = 'workspace 1'
+    cmd-2 = 'workspace 2'
+    cmd-3 = 'workspace 3'
     cmd-4 = 'workspace 4'
     cmd-5 = 'workspace 5'
     cmd-6 = 'workspace 6'
@@ -155,11 +155,12 @@ on-mode-changed = []
     cmd-8 = 'workspace 8'
     cmd-9 = 'workspace 9'
     cmd-leftSquareBracket = 'workspace ꩜'
+    cmd-rightSquareBracket = 'workspace ☌'
 
     # See: https://nikitabobko.github.io/AeroSpace/commands#move-node-to-workspace
-    cmd-shift-1 = 'move-node-to-workspace mf'
-    cmd-shift-2 = 'move-node-to-workspace xrisk'
-    cmd-shift-3 = 'move-node-to-workspace relevantbench'
+    cmd-shift-1 = 'move-node-to-workspace 1'
+    cmd-shift-2 = 'move-node-to-workspace 2'
+    cmd-shift-3 = 'move-node-to-workspace 3'
     cmd-shift-4 = 'move-node-to-workspace 4'
     cmd-shift-5 = 'move-node-to-workspace 5'
     cmd-shift-6 = 'move-node-to-workspace 6'
@@ -167,6 +168,7 @@ on-mode-changed = []
     cmd-shift-8 = 'move-node-to-workspace 8'
     cmd-shift-9 = 'move-node-to-workspace 9'
     cmd-shift-leftSquareBracket = 'move-node-to-workspace ꩜'
+    cmd-shift-rightSquareBracket = 'move-node-to-workspace ☌'
 
     # See: https://nikitabobko.github.io/AeroSpace/co`````mmands#workspace-back-and-forth
     cmd-tab = 'workspace-back-and-forth'

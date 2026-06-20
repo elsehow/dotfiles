@@ -8,7 +8,9 @@
 # Re-run `sketchybar --reload` after changing your Ghostty config to re-sync.
 #
 # Item order matches the cmd-<key> bindings in ~/.aerospace.toml, left to right:
-#   mf(cmd-1)  xrisk(cmd-2)  relevantbench(cmd-3)  4..9  ꩜(cmd-[)
+#   1(cmd-1)  2(cmd-2)  3(cmd-3)  4..9  ꩜(cmd-[)  ☌(cmd-])
+# Workspaces are numbered by default; relabel any one live with `ws-label`.
+# Only ꩜ and ☌ keep fixed, meaningful names.
 # A workspace pill is shown only when it holds windows (or is focused) —
 # empty workspaces are hidden. Highlight/visibility logic: plugins/aerospace.sh.
 
@@ -28,11 +30,15 @@ if command -v borders >/dev/null 2>&1; then
   borders active_color=$BORDER_ACTIVE inactive_color=$BORDER_INACTIVE width=6 >/dev/null 2>&1 &
 fi
 
-FONT_LABEL="$GHOSTTY_FONT:Regular:20.0"
+# Medium (not Regular): sketchybar's text layer skips the macOS font-smoothing
+# stem-darkening that fattens normal app text on a dark background, so a plain
+# Regular face reads a weight lighter here than the same font in Ghostty. Medium
+# compensates so the bar matches the terminal.
+FONT_LABEL="$GHOSTTY_FONT:Medium:20.0"
 FONT_ICON="$GHOSTTY_FONT:Bold:20.0"
 
-# Workspace items, in keyboard order. ꩜ is an emoji workspace name.
-WORKSPACES=(mf xrisk relevantbench 4 5 6 7 8 9 "꩜")
+# Workspace items, in keyboard order. ꩜ and ☌ are glyph workspace names.
+WORKSPACES=(1 2 3 4 5 6 7 8 9 "꩜" "☌")
 
 # Optional cosmetic label layer: `ws-label` writes id=label lines here so a pill
 # can display a friendly name while the workspace keeps its stable id for
