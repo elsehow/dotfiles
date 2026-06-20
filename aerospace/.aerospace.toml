@@ -154,7 +154,7 @@ on-mode-changed = []
     cmd-7 = 'workspace 7'
     cmd-8 = 'workspace 8'
     cmd-9 = 'workspace 9'
-    cmd-0 = 'workspace ꩜'
+    cmd-backtick = 'workspace ꩜'
 
     # See: https://nikitabobko.github.io/AeroSpace/commands#move-node-to-workspace
     cmd-shift-1 = 'move-node-to-workspace mf'
@@ -166,7 +166,7 @@ on-mode-changed = []
     cmd-shift-7 = 'move-node-to-workspace 7'
     cmd-shift-8 = 'move-node-to-workspace 8'
     cmd-shift-9 = 'move-node-to-workspace 9'
-    cmd-shift-0 = 'move-node-to-workspace ꩜'
+    cmd-shift-backtick = 'move-node-to-workspace ꩜'
 
     # See: https://nikitabobko.github.io/AeroSpace/co`````mmands#workspace-back-and-forth
     cmd-tab = 'workspace-back-and-forth'

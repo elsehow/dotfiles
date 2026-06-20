@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#
+# ws-label — name/rename the display label of an AeroSpace workspace, live.
+#
+# AeroSpace has no native rename: a workspace's name IS its identity, baked into
+# your keybindings (cmd-1 → `workspace mf`, etc.). Renaming it in the config
+# would strand the windows already in the old-named workspace. So instead this
+# drives a cosmetic label layer the sketchybar reads: the workspace keeps its
+# stable id (mf, xrisk, 4, ꩜ …) for keybinds + window placement, but its pill
+# shows whatever you name it. Persists across reloads via
+# ~/.config/sketchybar/workspace-labels.env.
+#
+# Usage:
+#   ws-label <name...>            relabel the FOCUSED workspace
+#   ws-label --id <id> <name...>  relabel a specific workspace by id
+#   ws-label --reset [<id>]       clear label (focused, or <id>) back to its id
+#   ws-label --list               show all id → label overrides
+#
+set -euo pipefail
+
+AERO=/opt/homebrew/bin/aerospace
+LABELS="$HOME/.config/sketchybar/workspace-labels.env"
+SB="$(command -v sketchybar || echo /opt/homebrew/bin/sketchybar)"
+
+focused() { "$AERO" list-workspaces --focused; }
+
+set_label() { # id label
+  local id="$1" label="$2" tmp
+  mkdir -p "$(dirname "$LABELS")"; touch "$LABELS"
+  tmp="$(mktemp)"
+  grep -v "^${id}=" "$LABELS" > "$tmp" 2>/dev/null || true
+  printf '%s=%s\n' "$id" "$label" >> "$tmp"
+  sort "$tmp" -o "$tmp"; mv "$tmp" "$LABELS"
+  "$SB" --set "space.${id}" icon="$label" >/dev/null 2>&1 || true
+}
+
+clear_label() { # id
+  local id="$1" tmp
+  if [ -f "$LABELS" ]; then
+    tmp="$(mktemp)"; grep -v "^${id}=" "$LABELS" > "$tmp" 2>/dev/null || true; mv "$tmp" "$LABELS"
+  fi
+  "$SB" --set "space.${id}" icon="$id" >/dev/null 2>&1 || true
+}
+
+case "${1:-}" in
+  ""|-h|--help)
+    sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  --list)
+    if [ -s "$LABELS" ]; then cat "$LABELS"; else echo "(no label overrides — pills show their raw ids)"; fi
+    exit 0 ;;
+  --reset)
+    id="${2:-$(focused)}"; clear_label "$id"; echo "✔ ${id} → (reset to id)"; exit 0 ;;
+  --id)
+    id="${2:?--id needs a workspace id}"; shift 2
+    [ $# -ge 1 ] || { echo "need a label" >&2; exit 1; }
+    set_label "$id" "$*"; echo "✔ ${id} → ${*}"; exit 0 ;;
+  *)
+    id="$(focused)"; set_label "$id" "$*"; echo "✔ ${id} → ${*}"; exit 0 ;;
+esac

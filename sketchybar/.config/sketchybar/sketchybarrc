@@ -8,9 +8,9 @@
 # Re-run `sketchybar --reload` after changing your Ghostty config to re-sync.
 #
 # Item order matches the cmd-<key> bindings in ~/.aerospace.toml, left to right:
-#   🕹️(cmd-`)  mf(cmd-1)  xrisk(cmd-2)  relevantbench(cmd-3)  4..9  ꩜(cmd-0)
-# Named workspaces are always shown; numbered scratch spaces (4-9) appear only
-# when they hold windows (or are focused). Highlight logic: plugins/aerospace.sh.
+#   mf(cmd-1)  xrisk(cmd-2)  relevantbench(cmd-3)  4..9  ꩜(cmd-`)
+# A workspace pill is shown only when it holds windows (or is focused) —
+# empty workspaces are hidden. Highlight/visibility logic: plugins/aerospace.sh.
 
 CONFIG_DIR="$HOME/.config/sketchybar"
 PLUGIN_DIR="$CONFIG_DIR/plugins"
@@ -28,11 +28,16 @@ if command -v borders >/dev/null 2>&1; then
   borders active_color=$BORDER_ACTIVE inactive_color=$BORDER_INACTIVE width=6 >/dev/null 2>&1 &
 fi
 
-FONT_LABEL="$GHOSTTY_FONT:Regular:14.0"
-FONT_ICON="$GHOSTTY_FONT:Bold:14.0"
+FONT_LABEL="$GHOSTTY_FONT:Regular:16.0"
+FONT_ICON="$GHOSTTY_FONT:Bold:16.0"
 
 # Workspace items, in keyboard order. ꩜ is an emoji workspace name.
 WORKSPACES=(mf xrisk relevantbench 4 5 6 7 8 9 "꩜")
+
+# Optional cosmetic label layer: `ws-label` writes id=label lines here so a pill
+# can display a friendly name while the workspace keeps its stable id for
+# keybinds + window placement. Absent file → pills just show their raw ids.
+LABELS="$CONFIG_DIR/workspace-labels.env"
 
 # ── Bar (floating + rounded, to match aerospace windows) ─────────────────────
 # The bar floats with rounded corners to match window rounding.
@@ -74,10 +79,14 @@ sketchybar --default \
 sketchybar --add event aerospace_workspace_change
 
 for sid in "${WORKSPACES[@]}"; do
+  label="$sid"
+  if [ -f "$LABELS" ]; then
+    l="$(grep -m1 "^${sid}=" "$LABELS" | cut -d= -f2-)"; [ -n "$l" ] && label="$l"
+  fi
   sketchybar --add item space."$sid" left \
     --subscribe space."$sid" aerospace_workspace_change \
     --set space."$sid" \
-      icon="$sid" \
+      icon="$label" \
       icon.padding_left=8 \
       icon.padding_right=8 \
       label.drawing=off \
