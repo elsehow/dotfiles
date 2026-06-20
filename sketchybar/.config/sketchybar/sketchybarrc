@@ -61,13 +61,18 @@ BAR_GAP_TOP=18   # gap above the bar (screen top → bar) — a touch tighter th
 BAR_GAP_BELOW=18 # gap below the bar (bar → window tops) — slightly tighter than the 25px window gaps, so the bar sits a little closer to its surroundings
 BAR_CORNER=12    # match your macOS window corner radius (tune to taste)
 
+# padding_left=8 aligns the first pill's glyph with the terminal text column:
+#   8 (bar) + 4 (item default) + 8 (icon.padding_left) = 20 = ghostty window-padding-x.
+# Bar and window are both inset 25 from the screen edge (BAR_MARGIN == gaps.outer.left),
+# so matching the internal offsets makes the badge "m" land on "Last login…". Keep these
+# in sync if you change window-padding-x or icon.padding_left. padding_right stays 14.
 sketchybar --bar \
   height=$BAR_HEIGHT \
   position=top \
   y_offset=$BAR_GAP_TOP \
   margin=$BAR_MARGIN \
   corner_radius=$BAR_CORNER \
-  padding_left=14 \
+  padding_left=8 \
   padding_right=14 \
   color=$BAR_COLOR \
   blur_radius=$BAR_BLUR \
