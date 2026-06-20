@@ -51,9 +51,15 @@ Usage:
   theme-texture --out PATH --size WxH --base "#rrggbb" \
                 --accents "#r1,#g2,#b4" [--seed N] \
                 [--style mesh|contour|flat|lowpoly|dot|flow|tiedye|ribbon] \
+                [--invert] \
                 [--blend 0.20] [--dither 2.0] [--grain 3.0] [--power 1.6]
+
+--invert flips the base to the opposite lightness (hue kept) so a dark theme
+yields a light wallpaper and vice versa — contrast behind tiled windows. It
+acts on the base only, so it works for every theme and every style at once.
 """
 import argparse
+import colorsys
 import math
 import sys
 
@@ -126,6 +132,23 @@ def working_base(raw_bg):
     L = luma(c) / 255.0
     k = 0.62 + 0.30 * L
     return c * k
+
+
+def flip_luma(raw_bg):
+    """Flip a theme bg to the OPPOSITE lightness, hue preserved → a contrast
+    wallpaper for any theme (dark theme → pale field, light theme → deep field).
+    Theme-agnostic: keys only off luminance. Every style is luminance-aware off
+    the resulting base, so flipping here inverts all styles, not just mesh. The
+    hue is kept but sat is capped low so the field stays calm behind windows."""
+    c = hex2rgb(raw_bg)
+    H, S, _ = colorsys.rgb_to_hsv(*(c / 255.0))
+    # Asymmetric targets: light→dark lands at a normal dark-theme value (~0.26),
+    # NOT near-black — working_base darkens it further and the center vignette
+    # pulls toward it, so a lower target reads as a black screen. dark→light can
+    # sit high (0.90) since working_base barely touches light bases.
+    V2 = 0.90 if luma(c) / 255.0 < 0.5 else 0.26
+    r, g, b = colorsys.hsv_to_rgb(H, min(S, 0.10), V2)
+    return "#%02x%02x%02x" % (round(r * 255), round(g * 255), round(b * 255))
 
 
 def pick_accents(accents, seed, n=None):
@@ -573,11 +596,15 @@ def main():
                     help="mesh: inverse-distance falloff (higher = sharper blobs)")
     ap.add_argument("--flow-alpha", type=float, default=0.5,
                     help="flow: streak opacity (higher = denser/brighter streams)")
+    ap.add_argument("--invert", action="store_true",
+                    help="render at the OPPOSITE lightness of the theme (dark "
+                         "theme → light wallpaper) for contrast behind windows")
     a = ap.parse_args()
 
     w, h = (int(x) for x in a.size.lower().split("x"))
     accents = [c for c in a.accents.split(",") if c.strip()]
-    base = working_base(a.base)
+    raw = flip_luma(a.base) if a.invert else a.base
+    base = working_base(raw)
     opts = {"blend": a.blend, "dither": a.dither, "grain": a.grain,
             "power": a.power, "flow_alpha": a.flow_alpha}
     img = STYLES[a.style](w, h, base, accents, a.seed, opts)

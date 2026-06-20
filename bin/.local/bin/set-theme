@@ -13,6 +13,8 @@
 #                                   or alone to re-apply the current theme)
 #   set-theme --style <name>        wallpaper style: mesh|contour|flat|lowpoly|
 #                                   dot|flow|tiedye|ribbon
+#   set-theme --invert / --no-invert  render the wallpaper at the opposite
+#                                   lightness of the theme (contrast) / follow it
 #   set-theme --list                list available theme names
 #   set-theme --current             show the currently configured theme
 #
@@ -83,8 +85,8 @@ set_cfg() {
   rm -f "$tmp"
 }
 
-# ── Pull --opacity / --style out of the args; the rest is the theme spec. ──
-OPACITY=1.0; OPACITY_SET=0; STYLE=""
+# ── Pull --opacity / --style / --invert out of the args; rest is the theme spec. ──
+OPACITY=1.0; OPACITY_SET=0; STYLE=""; INVERT=""; INVERT_SET=0
 _args=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -92,14 +94,16 @@ while [ $# -gt 0 ]; do
     --opacity=*) OPACITY="${1#--opacity=}"; OPACITY_SET=1; shift ;;
     --style)     STYLE="${2:?--style needs mesh|contour|flat}"; shift 2 ;;
     --style=*)   STYLE="${1#--style=}"; shift ;;
+    --invert)    INVERT=1; INVERT_SET=1; shift ;;        # contrast wallpaper
+    --no-invert) INVERT="";  INVERT_SET=1; shift ;;      # follow the theme
     *)           _args+=("$1"); shift ;;
   esac
 done
 set -- ${_args[@]+"${_args[@]}"}
 
-# `set-theme --opacity V` / `--style S` with no theme → re-apply the current theme
-# (at the new opacity / wallpaper style).
-if [ $# -eq 0 ] && { [ "$OPACITY_SET" = 1 ] || [ -n "$STYLE" ]; }; then
+# `set-theme --opacity V` / `--style S` / `--invert` with no theme → re-apply the
+# current theme (at the new opacity / wallpaper style / contrast mode).
+if [ $# -eq 0 ] && { [ "$OPACITY_SET" = 1 ] || [ -n "$STYLE" ] || [ "$INVERT_SET" = 1 ]; }; then
   cur="$("$GB" +show-config 2>/dev/null | grep -m1 '^theme = ' | sed 's/^theme = //' || true)"
   [ -n "$cur" ] && set -- "$cur"
 fi
@@ -165,6 +169,9 @@ echo "✔ sketchybar re-synced · ${note}"
 # the procedural texture; set THEME_WALLPAPER_MODE=--solid for a flat color instead.
 # (--texture falls back to solid on its own if numpy/Pillow aren't present.)
 if command -v theme-wallpaper >/dev/null 2>&1; then
+  # --invert/--no-invert override the env; absent either, inherit the env default.
+  [ "$INVERT_SET" = 1 ] && wp_invert="$INVERT" || wp_invert="${THEME_WALLPAPER_INVERT:-}"
   THEME_WALLPAPER_STYLE="${STYLE:-${THEME_WALLPAPER_STYLE:-mesh}}" \
+  THEME_WALLPAPER_INVERT="$wp_invert" \
     theme-wallpaper "${THEME_WALLPAPER_MODE:---texture}" >/dev/null 2>&1 || true
 fi

@@ -29,6 +29,9 @@
 #   THEME_WALLPAPER_SIZE   output WxH (default 7680x3240)
 #   THEME_WALLPAPER_STYLE  texture style: mesh | contour | flat | lowpoly |
 #                          dot | flow | tiedye | ribbon (default mesh)
+#   THEME_WALLPAPER_INVERT non-empty → render the wallpaper at the OPPOSITE
+#                          lightness of the theme (dark theme → light field), for
+#                          contrast behind windows. Works for any theme/style.
 #
 set -euo pipefail
 
@@ -95,24 +98,28 @@ set_texture() {
   accents="$(printf '%s\n' "$cfg" | grep -E '^palette = (1|2|4|5)=' | sed -E 's/.*=//' | paste -sd, -)"
   [ -z "$accents" ] && accents="$(get foreground)"
   seed="$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
+  # Opt-in contrast wallpaper: render at the opposite lightness of the theme.
+  inv=""; [ -n "$INVERT" ] && inv="--invert"
   # theme-texture takes the RAW bg (it does its own luminance-aware darken), so
-  # the cache key tracks the raw bg + style + a schema version bump.
-  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|v7|${SIZE}" | cksum | cut -d' ' -f1)"
+  # the cache key tracks the raw bg + style + invert state + a schema version bump.
+  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|${INVERT}|v8|${SIZE}" | cksum | cut -d' ' -f1)"
   out="$CACHE/tex-${STYLE}-${key}.png"
   mkdir -p "$CACHE"
   # Cache by content key: re-switching to a theme/style reuses its render instantly.
   if [ ! -f "$out" ]; then
-    if ! theme-texture --out "$out" --size "$SIZE" --base "$bg" --accents "$accents" --seed "$seed" --style "$STYLE"; then
+    if ! theme-texture --out "$out" --size "$SIZE" --base "$bg" --accents "$accents" --seed "$seed" --style "$STYLE" $inv; then
       echo "↩ texture unavailable — falling back to solid" >&2
       set_solid; return
     fi
   fi
   set_wallpaper "$out"
-  echo "✔ texture(${STYLE}) → bg ${bg}, accents ${accents}   (theme ${name})"
+  echo "✔ texture(${STYLE}${INVERT:+,inverted}) → bg ${bg}, accents ${accents}   (theme ${name})"
 }
 
 # Texture style: explicit 2nd arg (theme-wallpaper --texture flat) wins, else env.
 STYLE="${THEME_WALLPAPER_STYLE:-mesh}"
+# Contrast mode: render the wallpaper at the opposite lightness of the theme.
+INVERT="${THEME_WALLPAPER_INVERT:-}"
 
 case "${1:-}" in
   -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
