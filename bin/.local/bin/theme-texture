@@ -1,23 +1,37 @@
 #!/usr/bin/env python3
 """theme-texture — render a subtle procedural wallpaper from a theme palette.
 
-This is the "art file": a mesh (inverse-distance) gradient over a few control
-points that all hover near a base color with gentle accent tints, finished with
-ordered (Bayer) dithering to kill 8-bit banding and add a faint terminal-ish
-texture. Designed to sit calmly BEHIND tiled windows — low contrast, value near
-the base, no busy focal point.
+This is the "art file". It offers a few interchangeable *styles*, each taking the
+same inputs (a theme background + a handful of accent colors + a seed) and
+returning a PIL Image meant to sit calmly BEHIND tiled windows — low contrast,
+value near the base, quiet in the center where windows live.
 
-Swap the body of render() for any look you like (flow field, fBm, voronoi,
-domain-warped noise…). The contract is just: take a base color + accents + seed,
-return a PIL Image. Prototype shaders live in glslViewer / Shadertoy, then port
-the math here so the pipeline stays headless.
+Styles (--style):
+  mesh    (default) soft inverse-distance gradient. Bright/dark/accent pools are
+          pushed to the RIM and a center vignette keeps the middle calm; colors
+          mix in linear-light (no muddy brown between complementary accents);
+          accents are desaturated toward the base. Reads as a matte wall.
+  contour topographic iso-lines (a smooth value field sliced into bands) drawn in
+          the first accent over the base. On-brand for a terminal rice; light
+          themes look like a cream contour map, dark themes like faint blue lines.
+  flat    the calmest: a single soft corner-to-corner directional gradient with a
+          whisper of accent glow in one corner. Closest to a plain matte wall.
+
+Base treatment is luminance-aware and lives HERE (not in the caller): pass the
+RAW theme background as --base. Dark themes darken hard into a recessed gutter;
+light themes barely darken, so "paper" backgrounds stay warm and papery.
+
+Swap or add a style by writing a new render_<name>(w, h, base, accents, seed,
+opts) → PIL Image and registering it in STYLES. Prototype shaders in
+glslViewer / Shadertoy, then port the math here so the pipeline stays headless.
 
 Usage:
   theme-texture --out PATH --size WxH --base "#rrggbb" \
-                --accents "#r1,#g2,#b4" [--seed N] [--blend 0.22] \
-                [--dither 2.5] [--power 3.0]
+                --accents "#r1,#g2,#b4" [--seed N] [--style mesh|contour|flat] \
+                [--blend 0.20] [--dither 2.0] [--grain 3.0] [--power 1.6]
 """
 import argparse
+import math
 import sys
 
 try:
@@ -49,72 +63,186 @@ def hex2rgb(h):
     return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], dtype=np.float32)
 
 
-def render(w, h, base_hex, accent_hexes, seed, blend, dither, power):
+def luma(c):
+    return float(0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2])
+
+
+# sRGB <-> linear-light (gamma 2.2 approx). Mixing in linear light keeps the
+# transition between two accents from passing through muddy mid-grey/brown.
+def to_lin(c):
+    return (np.clip(c, 0, 255) / 255.0) ** 2.2
+
+
+def to_srgb(c):
+    return np.clip(c, 0.0, 1.0) ** (1.0 / 2.2) * 255.0
+
+
+def working_base(raw_bg):
+    """Luminance-aware darken of the raw theme bg into the texture's base color.
+
+    Dark themes darken hard (deep gutter); light themes barely move (paper stays
+    paper). k ranges ~0.62 (black) .. ~0.92 (white)."""
+    c = hex2rgb(raw_bg)
+    L = luma(c) / 255.0
+    k = 0.62 + 0.30 * L
+    return c * k
+
+
+def _bayer_tile(w, h):
+    ty = (h + 7) // 8
+    tx = (w + 7) // 8
+    return np.tile(BAYER8 / 64.0, (ty, tx))[:h, :w]
+
+
+def _finish(img, w, h, seed, dither, grain):
+    """Common tail: ordered dither (kills banding) + faint film grain (matte
+    surface, not a blur), then quantize to 8-bit."""
+    rng = np.random.default_rng(seed ^ 0x9E3779B9)
+    if dither > 0:
+        img = img + (_bayer_tile(w, h)[..., None] - 0.5) * dither
+    if grain > 0:
+        img = img + (rng.random((h, w, 1)) - 0.5) * grain
+    return Image.fromarray(np.clip(np.round(img), 0, 255).astype(np.uint8))
+
+
+# ── styles ───────────────────────────────────────────────────────────────────
+
+def render_mesh(w, h, base, accents, seed, opts):
     rng = np.random.default_rng(seed)
-    base = hex2rgb(base_hex)
+    L = luma(base) / 255.0
+    # Dark base needs a bigger light/dark swing to read as a gradient at all.
+    lift = 40.0 * (1.0 - L) + 12.0
+    blend = opts["blend"]
+    base_lin = to_lin(base)
 
-    lum = float(0.299 * base[0] + 0.587 * base[1] + 0.114 * base[2])
-    # Luminance-aware value swing: a dark base needs a much bigger light/dark
-    # spread to read as a gradient at all, while a light base should stay calm.
-    # `lift` is an absolute amount in 0..255 (big for dark themes, small for light).
-    lift = 45.0 * (1.0 - lum / 255.0) + 14.0
-    clip = lambda c: np.clip(c, 0.0, 255.0)
+    def rim():
+        # A point out toward the edges/corners (never the dead center).
+        a = rng.random() * 2 * math.pi
+        r = 0.55 + 0.45 * rng.random()
+        return np.array([0.5 + r * math.cos(a) * 0.6,
+                         0.5 + r * math.sin(a) * 0.5], dtype=np.float32)
 
-    # Control points: a calm base anchor, a brighter and a darker pool to
-    # guarantee a visible gradient on any theme, then one tinted point per accent
-    # (each only `blend` of the way from base toward the accent).
-    cols, pts = [], []
-    cols.append(base.copy());            pts.append(rng.random(2))
-    cols.append(clip(base + lift));      pts.append(rng.random(2))
-    cols.append(clip(base - lift * 0.6)); pts.append(rng.random(2))
-    for a in accent_hexes:
-        cols.append(clip(base * (1.0 - blend) + hex2rgb(a) * blend))
-        pts.append(rng.random(2))
-    cols = np.array(cols, dtype=np.float32)            # K x 3
-    pts = np.array(pts, dtype=np.float32)              # K x 2
+    cols = [base_lin]
+    pts = [np.array([0.5, 0.5], dtype=np.float32)]   # base anchor = calm center
+    cols.append(to_lin(np.clip(base + lift, 0, 255)));       pts.append(rim())
+    cols.append(to_lin(np.clip(base - lift * 0.7, 0, 255))); pts.append(rim())
+    for a in accents[:2]:                            # at most 2, desaturated
+        tint = np.clip(base * (1.0 - blend) + hex2rgb(a) * blend, 0, 255)
+        cols.append(to_lin(tint));                           pts.append(rim())
+    cols = np.array(cols, dtype=np.float32)
+    pts = np.array(pts, dtype=np.float32)
 
     xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
     ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
-    # Aspect-correct the x axis so blobs stay round, not stretched.
-    gx, gy = np.meshgrid(xs * (w / h), ys)
+    asp = w / h
+    gx, gy = np.meshgrid(xs * asp, ys)
 
     acc = np.zeros((h, w, 3), dtype=np.float32)
     wsum = np.zeros((h, w), dtype=np.float32)
+    power = opts["power"]
     for (px, py), col in zip(pts, cols):
-        d2 = (gx - px * (w / h)) ** 2 + (gy - py) ** 2 + 1e-3
-        weight = d2 ** (-power / 2.0)
-        wsum += weight
-        acc += weight[..., None] * col[None, None, :]
+        d2 = (gx - px * asp) ** 2 + (gy - py) ** 2 + 1e-3
+        wt = d2 ** (-power / 2.0)
+        wsum += wt
+        acc += wt[..., None] * col[None, None, :]
     img = acc / wsum[..., None]
 
-    if dither > 0:
-        ty = (h + 7) // 8
-        tx = (w + 7) // 8
-        tile = np.tile(BAYER8 / 64.0, (ty, tx))[:h, :w]
-        img = img + (tile[..., None] - 0.5) * dither
+    # Center-calm vignette: pull toward the base color in the middle third, where
+    # windows sit, so the visual interest stays at the edges.
+    vx = (gx / asp - 0.5)
+    vy = gy - 0.5
+    rad = np.sqrt(vx * vx + vy * vy) / 0.5
+    calm = (np.clip(1.0 - rad, 0.0, 1.0) ** 2) * 0.45
+    img = img * (1.0 - calm[..., None]) + base_lin[None, None, :] * calm[..., None]
 
-    out = np.clip(np.round(img), 0, 255).astype(np.uint8)
-    return Image.fromarray(out)
+    return _finish(to_srgb(img), w, h, seed, opts["dither"], opts["grain"])
+
+
+def render_contour(w, h, base, accents, seed, opts):
+    rng = np.random.default_rng(seed)
+    xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
+    ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
+    gx, gy = np.meshgrid(xs, ys)
+    # Cheap smooth field: a sum of a few low-frequency sine waves.
+    f = np.zeros((h, w), dtype=np.float32)
+    for _ in range(4):
+        ax, ay = rng.normal(0, 3, 2)
+        ph = rng.random() * 6.28318
+        f += np.sin(ax * gx * math.pi + ay * gy * math.pi + ph)
+    f = (f - f.min()) / (np.ptp(f) + 1e-9)
+
+    line = hex2rgb(accents[0]) if accents else np.clip(base + 40, 0, 255)
+    base_img = np.ones((h, w, 3), dtype=np.float32) * base[None, None, :]
+    n = 14                                   # number of iso-bands
+    fr = (f * n) % 1.0
+    edge = np.minimum(fr, 1.0 - fr)
+    mask = np.clip(1.0 - edge / 0.04, 0.0, 1.0) * 0.5   # faint lines
+    out = base_img * (1.0 - mask[..., None]) + line[None, None, :] * mask[..., None]
+    return _finish(out, w, h, seed, 0.0, opts["grain"])
+
+
+def render_flat(w, h, base, accents, seed, opts):
+    rng = np.random.default_rng(seed)
+    L = luma(base) / 255.0
+    lift = 26.0 * (1.0 - L) + 8.0
+    # Random-but-seeded diagonal direction; gradient runs corner-to-corner.
+    a = rng.random() * 2 * math.pi
+    dx, dy = math.cos(a), math.sin(a)
+    xs = np.linspace(-0.5, 0.5, w, dtype=np.float32)
+    ys = np.linspace(-0.5, 0.5, h, dtype=np.float32)
+    gx, gy = np.meshgrid(xs, ys)
+    t = (gx * dx + gy * dy)
+    t = (t - t.min()) / (np.ptp(t) + 1e-9)            # 0..1 along the diagonal
+    lo = to_lin(np.clip(base - lift * 0.4, 0, 255))
+    hi = to_lin(np.clip(base + lift * 0.6, 0, 255))
+    img = lo[None, None, :] * (1 - t[..., None]) + hi[None, None, :] * t[..., None]
+
+    # A whisper of accent glow in one corner.
+    if accents:
+        ac = to_lin(np.clip(base * 0.85 + hex2rgb(accents[0]) * 0.15, 0, 255))
+        cx, cy = rng.choice([0.08, 0.92]), rng.choice([0.1, 0.9])
+        asp = w / h
+        gxx, gyy = np.meshgrid(np.linspace(0, 1, w, dtype=np.float32) * asp,
+                               np.linspace(0, 1, h, dtype=np.float32))
+        d = np.sqrt((gxx - cx * asp) ** 2 + (gyy - cy) ** 2)
+        glow = np.clip(1.0 - d / 0.6, 0.0, 1.0) ** 2 * 0.5
+        img = img * (1 - glow[..., None]) + ac[None, None, :] * glow[..., None]
+
+    return _finish(to_srgb(img), w, h, seed, opts["dither"], opts["grain"])
+
+
+STYLES = {
+    "mesh": render_mesh,
+    "contour": render_contour,
+    "flat": render_flat,
+}
 
 
 def main():
     ap = argparse.ArgumentParser(description="procedural theme wallpaper")
     ap.add_argument("--out", required=True)
     ap.add_argument("--size", default="7680x3240", help="WxH")
-    ap.add_argument("--base", required=True, help="#rrggbb base/gutter color")
+    ap.add_argument("--base", required=True,
+                    help="#rrggbb RAW theme background (darkened internally)")
     ap.add_argument("--accents", default="", help="comma-separated #rrggbb")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--blend", type=float, default=0.22,
-                    help="0..1 how far control colors move from base toward accents")
-    ap.add_argument("--dither", type=float, default=2.5,
+    ap.add_argument("--style", default="mesh", choices=sorted(STYLES),
+                    help="which procedural look to render")
+    ap.add_argument("--blend", type=float, default=0.20,
+                    help="mesh: 0..1 how far accent points move from base")
+    ap.add_argument("--dither", type=float, default=2.0,
                     help="ordered-dither amplitude in 0..255 levels (0 = off)")
-    ap.add_argument("--power", type=float, default=3.0,
-                    help="inverse-distance falloff exponent (higher = sharper blobs)")
+    ap.add_argument("--grain", type=float, default=3.0,
+                    help="film-grain amplitude in 0..255 levels (0 = off)")
+    ap.add_argument("--power", type=float, default=1.6,
+                    help="mesh: inverse-distance falloff (higher = sharper blobs)")
     a = ap.parse_args()
 
     w, h = (int(x) for x in a.size.lower().split("x"))
     accents = [c for c in a.accents.split(",") if c.strip()]
-    img = render(w, h, a.base, accents, a.seed, a.blend, a.dither, a.power)
+    base = working_base(a.base)
+    opts = {"blend": a.blend, "dither": a.dither, "grain": a.grain, "power": a.power}
+    img = STYLES[a.style](w, h, base, accents, a.seed, opts)
     img.save(a.out)
 
 

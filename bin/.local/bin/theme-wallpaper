@@ -8,22 +8,25 @@
 #     themes darken to a warm "paper" gray; dark themes to a deep gutter. Pure
 #     stdlib, works on any machine.
 #   • TEXTURE (--texture) — a subtle procedural wallpaper rendered from the
-#     theme's full palette (mesh gradient + ordered dither) via theme-texture.
-#     Needs numpy + Pillow; falls back to SOLID if they're missing.
+#     theme's full palette via theme-texture, in one of several STYLES
+#     (mesh | contour | flat). Needs numpy + Pillow; falls back to SOLID if
+#     they're missing.
 #
 # Both stay in-hue with the terminal and pair well with 0% window transparency.
 #
 # Usage:
-#   theme-wallpaper             solid color derived from the live theme
-#   theme-wallpaper --solid     same (explicit)
-#   theme-wallpaper "#1e1e2e"   solid, explicit color (exact bg = seamless)
-#   theme-wallpaper --texture   procedural wallpaper from the theme palette
+#   theme-wallpaper                  solid color derived from the live theme
+#   theme-wallpaper --solid          same (explicit)
+#   theme-wallpaper "#1e1e2e"        solid, explicit color (exact bg = seamless)
+#   theme-wallpaper --texture        procedural wallpaper (style = mesh, default)
+#   theme-wallpaper --texture flat   procedural wallpaper in a specific style
 #
 # set-theme repaints with --texture by default; set THEME_WALLPAPER_MODE=--solid
 # to make it use a solid color instead.
 #
 # Env:
 #   THEME_WALLPAPER_SIZE   output WxH (default 7680x3240)
+#   THEME_WALLPAPER_STYLE  texture style: mesh | contour | flat (default mesh)
 #
 set -euo pipefail
 
@@ -82,32 +85,36 @@ set_solid() {
 }
 
 set_texture() {
-  local bg name base hexb accents seed key out
+  local bg name accents seed key out
   bg="$(get background)"; bg="${bg:-#1e1e2e}"
   name="$(get theme)"; name="${name:-default}"
-  base="$(darken "$bg")"; hexb="${base#\#}"
   # Accents = the colorful end of the 16-color ANSI palette (red/green/blue/
   # magenta); fall back to the foreground if a theme defines no palette.
   accents="$(printf '%s\n' "$cfg" | grep -E '^palette = (1|2|4|5)=' | sed -E 's/.*=//' | paste -sd, -)"
   [ -z "$accents" ] && accents="$(get foreground)"
   seed="$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
-  key="$(printf '%s' "${name}|${base}|${accents}|v1|${SIZE}" | cksum | cut -d' ' -f1)"
-  out="$CACHE/tex-${key}.png"
+  # theme-texture takes the RAW bg (it does its own luminance-aware darken), so
+  # the cache key tracks the raw bg + style + a schema version bump.
+  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|v2|${SIZE}" | cksum | cut -d' ' -f1)"
+  out="$CACHE/tex-${STYLE}-${key}.png"
   mkdir -p "$CACHE"
-  # Cache by content key: re-switching to a theme reuses its render instantly.
+  # Cache by content key: re-switching to a theme/style reuses its render instantly.
   if [ ! -f "$out" ]; then
-    if ! theme-texture --out "$out" --size "$SIZE" --base "$base" --accents "$accents" --seed "$seed"; then
+    if ! theme-texture --out "$out" --size "$SIZE" --base "$bg" --accents "$accents" --seed "$seed" --style "$STYLE"; then
       echo "↩ texture unavailable — falling back to solid" >&2
       set_solid; return
     fi
   fi
   set_wallpaper "$out"
-  echo "✔ texture → base #${hexb}, accents ${accents}   (theme ${name})"
+  echo "✔ texture(${STYLE}) → bg ${bg}, accents ${accents}   (theme ${name})"
 }
 
+# Texture style: explicit 2nd arg (theme-wallpaper --texture flat) wins, else env.
+STYLE="${THEME_WALLPAPER_STYLE:-mesh}"
+
 case "${1:-}" in
-  -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-  --texture) set_texture ;;
+  -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  --texture) [ -n "${2:-}" ] && STYLE="$2"; set_texture ;;
   --solid)   set_solid ;;
   *)         set_solid "${1:-}" ;;
 esac

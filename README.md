@@ -46,9 +46,10 @@ Restow after editing/pulling: `cd ~/dotfiles && stow --restow aerospace sketchyb
   the Ghostty config, reloads live terminals, reloads sketchybar (which re-derives
   the palette), and repaints the desktop wallpaper. Browse with `--list`,
   `--current` to check, `--random [light|dark]` to roll one (light/dark filtered
-  by reading each theme file's background luminance), and `--opacity <0..1>` to
+  by reading each theme file's background luminance), `--opacity <0..1>` to
   set terminal background transparency (default 1 = opaque; pass alone to
-  re-apply the current theme at a new opacity).
+  re-apply the current theme at a new opacity), and `--style <mesh|contour|flat>`
+  to pick the wallpaper look (see *Desktop wallpaper* below).
 - Config writes go *through* the stow symlink (never `mv` over it), so switching
   themes keeps `~/Library/.../ghostty/config` linked to the repo.
 
@@ -61,15 +62,28 @@ Restow after editing/pulling: `cd ~/dotfiles && stow --restow aerospace sketchyb
   read as a recessed gutter and windows float. Light themes → warm "paper" gray;
   dark themes → deep gutter. Pure-stdlib, works everywhere.
   `theme-wallpaper "#1e1e2e"` forces an explicit color (exact bg = seamless).
-- **Texture (`theme-wallpaper --texture`)** — a subtle procedural wallpaper: a
-  mesh (inverse-distance) gradient over control points tinted from the theme's
-  16-color ANSI palette, plus ordered (Bayer) dither. The "art" lives in
-  `theme-texture` (a numpy/Pillow script) — edit its `render()` to change the
-  look; prototype shaders in glslViewer/Shadertoy and port the math in. Needs
-  numpy + Pillow (see Brewfile); falls back to solid if absent.
+- **Texture (`theme-wallpaper --texture [style]`)** — a subtle procedural
+  wallpaper rendered from the theme's 16-color ANSI palette, in one of three
+  **styles**:
+  - `mesh` (default) — soft inverse-distance gradient. Bright/dark/accent pools
+    are pushed to the rim with a center vignette (so windows sit on calm ground),
+    colors mix in linear-light (no muddy brown between accents), and a luminance-
+    aware darken keeps light "paper" themes papery instead of crushing them grey.
+  - `contour` — topographic iso-lines in an accent over the base. On-brand for a
+    terminal rice; light themes read as a cream contour map.
+  - `flat` — a single soft corner-to-corner gradient with a whisper of accent
+    glow. The calmest; closest to a plain matte wall.
 
-`set-theme` (incl. `--random`) uses texture by default; `export THEME_WALLPAPER_MODE=--solid`
-for a flat color. Output size: `export THEME_WALLPAPER_SIZE=5120x2160` (default `7680x3240`).
+  The "art" lives in `theme-texture` (a numpy/Pillow script) — each style is a
+  `render_<name>()`; add one and register it in `STYLES`. Prototype shaders in
+  glslViewer/Shadertoy and port the math in. Needs numpy + Pillow (see Brewfile);
+  falls back to solid if absent.
+
+`set-theme` (incl. `--random`) uses texture by default. Roll the look with
+`set-theme --style contour` (or `mesh`/`flat`; pass alone to re-skin the current
+theme). Env knobs: `export THEME_WALLPAPER_MODE=--solid` for a flat color,
+`export THEME_WALLPAPER_STYLE=contour` to change the default texture style, and
+`export THEME_WALLPAPER_SIZE=5120x2160` to set output size (default `7680x3240`).
 
 ## Per-machine adaptation
 
