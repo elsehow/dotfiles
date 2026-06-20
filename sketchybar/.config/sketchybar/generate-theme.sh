@@ -67,6 +67,10 @@ alpha()  { awk -v o="$1" 'BEGIN{a=int(o*255+0.5); if(a<0)a=0; if(a>255)a=255; pr
 [ -n "$OPACITY_OVERRIDE" ] && opacity="$OPACITY_OVERRIDE"
 
 BG_HEX="$(hexrgb "$bg")"; FG_HEX="$(hexrgb "$fg")"; A="$(alpha "$opacity")"
+# The "agent needs me" dot uses the theme's red (ANSI palette color 1), so it
+# pops against the monochrome bar while still belonging to the Ghostty theme.
+red="$(printf '%s\n' "$cfg" | grep -m1 '^palette = 1=' | sed 's/^palette = 1=//')"
+RED_HEX="$(hexrgb "${red:-#a31700}")"
 case "$blur" in
   true)     blur=30 ;;
   false|"") blur=0 ;;
@@ -84,6 +88,8 @@ ACCENT_FG=0xff${FG_HEX}
 DIM_FG=0x99${FG_HEX}
 FOCUSED_BG=0xff${FG_HEX}
 FOCUSED_FG=0xff${BG_HEX}
+# "Agent needs me" dot (agent-ready.sh) — the theme's red (palette color 1).
+NOTIF_COLOR=0xff${RED_HEX}
 # JankyBorders: active border = theme foreground; inactive = transparent.
 BORDER_ACTIVE=0xff${FG_HEX}
 BORDER_INACTIVE=0x00000000

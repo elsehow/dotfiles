@@ -22,6 +22,7 @@ PLUGIN_DIR="$CONFIG_DIR/plugins"
 source "$CONFIG_DIR/theme.env"
 : "${GHOSTTY_FONT:=Menlo}" "${BAR_COLOR:=0xff1e1e2e}" "${BAR_BLUR:=0}" "${ACCENT_FG:=0xffe1e3e4}"
 : "${BORDER_ACTIVE:=$ACCENT_FG}" "${BORDER_INACTIVE:=0x00000000}"
+: "${NOTIF_COLOR:=0xffa31700}"
 
 # Re-tint the JankyBorders window borders to the (possibly new) theme color.
 # `borders` updates its running daemon when re-invoked, so this propagates live
@@ -87,6 +88,10 @@ sketchybar --default \
 # AeroSpace fires this event on every workspace change (wired in ~/.aerospace.toml).
 sketchybar --add event aerospace_workspace_change
 
+# Fired by the Claude Code hook (agent-ready-hook.sh) when an agent finishes /
+# needs input, so its workspace pill can show a "needs me" dot. See agent-ready.sh.
+sketchybar --add event agent_ready_change
+
 for sid in "${WORKSPACES[@]}"; do
   label="$sid"
   if [ -f "$LABELS" ]; then
@@ -97,12 +102,27 @@ for sid in "${WORKSPACES[@]}"; do
     --set space."$sid" \
       icon="$label" \
       icon.padding_left=8 \
-      icon.padding_right=8 \
-      label.drawing=off \
+      icon.padding_right=2 \
+      label="●" \
+      label.font="$GHOSTTY_FONT:Bold:13.0" \
+      label.color=0x00000000 \
+      label.y_offset=6 \
+      label.padding_left=0 \
+      label.padding_right=6 \
       background.drawing=off \
       click_script="aerospace workspace $sid" \
       script="$PLUGIN_DIR/aerospace.sh"
 done
+
+# ── Agent-ready dots (invisible driver) ──────────────────────────────────────
+# Paints a "needs me" dot on the pill of any workspace holding a Claude Code
+# session that's waiting on you. drawing=off → the item itself is never shown;
+# it only runs its script to repaint the space.* pills' label layer. Repaints
+# when the hook fires (agent_ready_change) and on every workspace change (so
+# focusing a workspace clears its dot).
+sketchybar --add item agentready left \
+  --set agentready drawing=off script="$PLUGIN_DIR/agent-ready.sh" \
+  --subscribe agentready agent_ready_change aerospace_workspace_change
 
 # ── Right side: clock (in the Ghostty font, monospace) ───────────────────────
 sketchybar --add item clock right \
@@ -111,6 +131,7 @@ sketchybar --add item clock right \
     icon.drawing=off \
     label.font="$FONT_LABEL" \
     label.color=$ACCENT_FG \
+    label.padding_right=8 \
     script="$PLUGIN_DIR/clock.sh"
 
 # ── Right side: battery (LAPTOPS ONLY) ───────────────────────────────────────
