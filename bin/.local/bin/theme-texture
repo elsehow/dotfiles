@@ -438,8 +438,8 @@ def render_dot(w, h, base, accents, seed, opts):
     sign = -1.0 if L > 0.5 else 1.0
     amt = max(20.0, 26.0 * (1.0 - L) + 14.0)
     # Small, tightly-spaced dots — a fine perfboard/graph-paper grain.
-    s = max(9, w // 150)
-    r = max(1.7, s * 0.26)
+    s = max(6, w // 380)
+    r = max(1.4, s * 0.20)
     X, Y = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
     dx = (X % s) - s / 2.0
     dy = (Y % s) - s / 2.0

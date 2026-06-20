@@ -96,7 +96,7 @@ set_texture() {
   seed="$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
   # theme-texture takes the RAW bg (it does its own luminance-aware darken), so
   # the cache key tracks the raw bg + style + a schema version bump.
-  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|v5|${SIZE}" | cksum | cut -d' ' -f1)"
+  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|v6|${SIZE}" | cksum | cut -d' ' -f1)"
   out="$CACHE/tex-${STYLE}-${key}.png"
   mkdir -p "$CACHE"
   # Cache by content key: re-switching to a theme/style reuses its render instantly.
