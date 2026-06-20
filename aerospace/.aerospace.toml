@@ -56,7 +56,7 @@ automatically-unhide-macos-hidden-apps = true
 # even when they are invisible.
 # This config version is only available since 'config-version = 2'
 # Fallback value (if you omit the key): persistent-workspaces = []
-persistent-workspaces = ["mf", "xrisk", "relevantbench", "꩜"]
+persistent-workspaces = ["1", "2", "3", "꩜"]
 
 # A callback that runs every time binding mode changes
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
@@ -81,7 +81,7 @@ on-mode-changed = []
     inner.vertical =   25
     outer.left =       25
     outer.bottom =     25
-    outer.top =        86   # floating bar: gap_above(25) + bar height(36) + gap_below(25) — uniform 25px gap on every side of the bar, matching the other outer/inner gaps
+    outer.top =        72   # floating bar: gap_above(18) + bar height(36) + gap_below(18) — bar gaps kept a touch tighter than the 25px window gaps so the bar hugs its surroundings
     outer.right =      25
 
 # 'main' binding mode declaration

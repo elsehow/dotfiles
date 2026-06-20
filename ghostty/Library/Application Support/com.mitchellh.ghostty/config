@@ -51,7 +51,7 @@ keybind = performable:cmd+l=goto_split:right
 font-family = "Inconsolata"
 font-size = 23
 
-background-opacity = 1.0
+background-opacity = 1
 background-blur-radius = 100
 macos-titlebar-style = "hidden"
 # window-padding-x matches the sketchybar left text inset (bar padding 14 + item
@@ -60,9 +60,9 @@ macos-titlebar-style = "hidden"
 # balance must stay OFF or it adds variable leftover padding on the left and breaks
 # that alignment (the extra space goes to the right edge instead).
 window-padding-balance = false
-window-padding-x = 26
+window-padding-x = 20
 window-padding-y = 20
 mouse-hide-while-typing = true
 window-decoration = true
 
-theme = IR Black
+theme = Melange Light

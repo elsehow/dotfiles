@@ -8,7 +8,7 @@
 # Re-run `sketchybar --reload` after changing your Ghostty config to re-sync.
 #
 # Item order matches the cmd-<key> bindings in ~/.aerospace.toml, left to right:
-#   mf(cmd-1)  xrisk(cmd-2)  relevantbench(cmd-3)  4..9  ꩜(cmd-`)
+#   mf(cmd-1)  xrisk(cmd-2)  relevantbench(cmd-3)  4..9  ꩜(cmd-[)
 # A workspace pill is shown only when it holds windows (or is focused) —
 # empty workspaces are hidden. Highlight/visibility logic: plugins/aerospace.sh.
 
@@ -42,15 +42,16 @@ LABELS="$CONFIG_DIR/workspace-labels.env"
 # ── Bar (floating + rounded, to match aerospace windows) ─────────────────────
 # The bar floats with rounded corners to match window rounding.
 #
-# The bar floats with a uniform gap on every side — above it, below it (down to the
-# window tops), and matching gaps.outer.*/inner.* — so every gap on the desktop is
-# the same 25px and the bar sits symmetrically in its float.
+# The bar floats with a symmetric gap above and below it. Those bar gaps are kept a
+# touch tighter (18px) than the 25px window gaps (gaps.outer.*/inner.*), so the bar
+# hugs the screen edge and the windows a little more closely while still reading as
+# part of the same floating layout.
 # NOTE: keep `outer.top` in ~/.aerospace.toml equal to
 #   (BAR_GAP_TOP + BAR_HEIGHT + BAR_GAP_BELOW)
 BAR_HEIGHT=36    # tall enough to seat the 20pt label with comfortable padding
 BAR_MARGIN=25    # side inset of the bar (match gaps.outer.left/right in ~/.aerospace.toml)
-BAR_GAP_TOP=25   # gap above the bar (screen top → bar)
-BAR_GAP_BELOW=25 # gap below the bar (bar → window tops); = every other gap, for uniformity
+BAR_GAP_TOP=18   # gap above the bar (screen top → bar) — a touch tighter than the 25px window gaps
+BAR_GAP_BELOW=18 # gap below the bar (bar → window tops) — slightly tighter than the 25px window gaps, so the bar sits a little closer to its surroundings
 BAR_CORNER=12    # match your macOS window corner radius (tune to taste)
 
 sketchybar --bar \
