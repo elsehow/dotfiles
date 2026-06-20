@@ -26,6 +26,16 @@ Styles (--style):
            palette-tinted streamlines. The dynamic one — sinuous and organic.
   flow-multi  flow, but particles are hued by their start position so the palette
            flows in coherent multicolor bands across the canvas.
+  tiedye   psychedelic full-spectrum spiral folded around a jittered center and
+           warped into organic bleed. Loud, not calm — the one to reach for when
+           you want a rice that screams. accents ignored (tie-dye is the rainbow).
+  ribbon   2000s flowy 3D lines: translucent silk ribbons sine-waving across the
+           canvas with rounded speculars, hued across the spectrum so the overlaps
+           read like a Vista/Windows-Media-Player aurora.
+
+The last two are the loud styles — every other style stays near the base value so
+it sits calmly behind windows; tiedye/ribbon are hue-driven and vivid by design
+(both still calm the center so windows stay legible).
 
 Base treatment is luminance-aware and lives HERE (not in the caller): pass the
 RAW theme background as --base. Dark themes darken hard into a recessed gutter;
@@ -42,7 +52,7 @@ glslViewer / Shadertoy, then port the math here so the pipeline stays headless.
 Usage:
   theme-texture --out PATH --size WxH --base "#rrggbb" \
                 --accents "#r1,#g2,#b4" [--seed N] \
-                [--style mesh|contour|contour-multi|flat|lowpoly|dot|flow|flow-multi] \
+                [--style mesh|contour|contour-multi|flat|lowpoly|dot|flow|flow-multi|tiedye|ribbon] \
                 [--blend 0.20] [--dither 2.0] [--grain 3.0] [--power 1.6]
 """
 import argparse
@@ -90,6 +100,23 @@ def to_lin(c):
 
 def to_srgb(c):
     return np.clip(c, 0.0, 1.0) ** (1.0 / 2.2) * 255.0
+
+
+def hsv2rgb(hh, ss, vv):
+    """Vectorized HSV→RGB. hh/ss/vv are float arrays in 0..1 (same shape);
+    returns an array of that shape + a trailing length-3 axis, in 0..255. Used by
+    the saturated styles (tiedye/ribbon) where the look is hue-driven, not a
+    desaturated nudge off the base like the calm styles."""
+    i = np.floor(hh * 6.0).astype(np.int64)
+    f = hh * 6.0 - i
+    i = i % 6
+    p = vv * (1.0 - ss)
+    q = vv * (1.0 - f * ss)
+    t = vv * (1.0 - (1.0 - f) * ss)
+    r = np.choose(i, [vv, q, p, p, t, vv])
+    g = np.choose(i, [t, vv, vv, q, p, p])
+    b = np.choose(i, [p, p, t, vv, vv, q])
+    return np.stack([r, g, b], axis=-1) * 255.0
 
 
 def working_base(raw_bg):
@@ -453,8 +480,103 @@ def render_dot(w, h, base, accents, seed, opts):
     return _finish(img, w, h, seed, opts["dither"], opts["grain"])
 
 
+def render_tiedye(w, h, base, accents, seed, opts):
+    """Psychedelic spiral tie-dye: a full-spectrum rainbow folded around a center
+    (angle → pinwheel, radius → rings; together a spiral), warped by a low-freq
+    crinkle field so the dye reads as bled into fabric rather than mathematically
+    clean. Unapologetically vivid — unlike the calm styles it does NOT hug the base
+    value — but a center vignette darkens toward the theme bg so windows stay
+    legible. accents are ignored on purpose: tie-dye is the rainbow."""
+    rng = np.random.default_rng(seed)
+    L = luma(base) / 255.0
+    asp = w / h
+    xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
+    ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
+    gx, gy = np.meshgrid(xs * asp, ys)
+
+    # Dye center, jittered off the middle so the spiral isn't dead-centered.
+    cx = (0.5 + (rng.random() - 0.5) * 0.25) * asp
+    cy = 0.5 + (rng.random() - 0.5) * 0.25
+    dx, dy = gx - cx, gy - cy
+    r = np.sqrt(dx * dx + dy * dy)
+    ang = np.arctan2(dy, dx)
+
+    # Crinkle: a few low-frequency sines warp the hue field → organic bleed.
+    warp = np.zeros((h, w), dtype=np.float32)
+    for _ in range(3):
+        a1, a2 = rng.normal(0, 2.0, 2)
+        ph = rng.random() * 6.28318
+        warp += np.sin(a1 * gx * math.pi + a2 * gy * math.pi + ph)
+    warp *= 0.11
+
+    folds = int(rng.integers(5, 9))         # pinwheel sections
+    twist = rng.uniform(2.8, 4.6)           # how tight the spiral winds
+    hue = (ang * folds / (2 * math.pi) + r * twist + warp + rng.random()) % 1.0
+    sat = np.clip(0.80 + 0.18 * np.sin(r * twist * 1.7 + warp * 3.0), 0.5, 1.0)
+    val = 0.86 + 0.12 * np.sin(ang * folds + r * twist + 1.3)
+
+    rgb = hsv2rgb(hue.astype(np.float32), sat.astype(np.float32),
+                  val.astype(np.float32))
+
+    # Center-calm vignette → toward a darkened theme bg, so the saturated rim
+    # frames the windows that sit in the middle.
+    base_d = base * (0.45 + 0.30 * L)
+    vx, vy = (gx / asp - 0.5), (gy - 0.5)
+    rad = np.sqrt(vx * vx + vy * vy) / 0.5
+    calm = (np.clip(1.0 - rad, 0.0, 1.0) ** 2) * 0.40
+    img = to_srgb(to_lin(rgb) * (1.0 - calm[..., None])
+                  + to_lin(base_d)[None, None, :] * calm[..., None])
+    return _finish(img, w, h, seed, opts["dither"], opts["grain"])
+
+
+def render_ribbon(w, h, base, accents, seed, opts):
+    """2000s flowy 3D lines: translucent silk ribbons sine-waving across the
+    canvas, each with a rounded specular highlight (a Gaussian band offset off its
+    centerline) so it reads as a lit 3D surface, and each a different spectrum hue
+    so the overlaps blend like a Vista/WMP aurora. Composited over the theme bg in
+    linear light. Vivid but the ribbons thin out toward the center so windows sit
+    on the calmer band of the field."""
+    rng = np.random.default_rng(seed)
+    L = luma(base) / 255.0
+    xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
+    ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
+    gx, gy = np.meshgrid(xs, ys)
+
+    out_lin = to_lin(np.ones((h, w, 3), dtype=np.float32) * base[None, None, :])
+    nrib = int(rng.integers(5, 8))
+    hue0 = rng.random()
+    # Center-calm: fade ribbon opacity in the middle third where windows live.
+    cdist = np.abs(gy - 0.5) * 2.0
+    center_fade = np.clip(0.35 + 0.65 * cdist, 0.0, 1.0)
+
+    for k in range(nrib):
+        hue = (hue0 + k / nrib + rng.uniform(-0.04, 0.04)) % 1.0
+        col = hsv2rgb(np.float32(hue), np.float32(0.72),
+                      np.float32(0.95 - 0.10 * L))            # length-3
+        amp = rng.uniform(0.08, 0.17)
+        freq = rng.uniform(1.0, 2.2)
+        freq2 = rng.uniform(2.6, 4.0)
+        ph = rng.random() * 6.28318
+        y0 = rng.uniform(0.12, 0.88)
+        center = (y0 + amp * np.sin(freq * gx * 2 * math.pi + ph)
+                  + 0.4 * amp * np.sin(freq2 * gx * 2 * math.pi + ph * 1.7))
+        thick = rng.uniform(0.05, 0.10)
+        dist = (gy - center) / thick
+        band = np.exp(-0.5 * dist * dist)                    # ribbon profile
+        # Rounded specular: a highlight offset to one edge fakes a lit 3D tube.
+        spec = np.exp(-((dist + 0.4) ** 2) / (2 * 0.55 ** 2))
+        shade = 0.45 + 0.85 * spec
+        ribcol = to_lin(np.clip(col[None, None, :] * shade[..., None], 0, 255))
+        a = (band * center_fade)[..., None] * 0.6
+        out_lin = out_lin * (1.0 - a) + ribcol * a
+
+    return _finish(to_srgb(out_lin), w, h, seed, 2.0, opts["grain"])
+
+
 STYLES = {
     "mesh": render_mesh,
+    "tiedye": render_tiedye,
+    "ribbon": render_ribbon,
     "contour": render_contour,
     "contour-multi": render_contour_multi,
     "flat": render_flat,

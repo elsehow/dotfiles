@@ -83,6 +83,15 @@ Restow after editing/pulling: `cd ~/dotfiles && stow --restow aerospace sketchyb
     glowing palette-tinted streamlines. The dynamic one — sinuous and organic.
   - `flow-multi` — flow, but particles are hued by their start position so the
     palette flows in coherent multicolor bands across the canvas.
+  - `tiedye` — psychedelic full-spectrum spiral folded around a jittered center
+    and warped into organic bleed. The loud one — accents ignored (tie-dye is the
+    rainbow); the center darkens toward the theme bg so windows stay legible.
+  - `ribbon` — 2000s flowy 3D lines: translucent silk ribbons sine-waving across
+    the canvas with rounded speculars, hued across the spectrum so the overlaps
+    read like a Vista/Windows-Media-Player aurora.
+
+  Most styles stay near the base value (calm behind windows); `tiedye`/`ribbon`
+  are the deliberately loud, hue-driven exceptions.
 
   Accent choice is shuffled per-theme, so a style doesn't always grab the same
   palette slot (e.g. `contour` isn't perpetually red) while staying stable for a

@@ -9,7 +9,8 @@
 #     stdlib, works on any machine.
 #   • TEXTURE (--texture) — a subtle procedural wallpaper rendered from the
 #     theme's full palette via theme-texture, in one of several STYLES
-#     (mesh | contour | contour-multi | flat | lowpoly | dot | flow | flow-multi).
+#     (mesh | contour | contour-multi | flat | lowpoly | dot | flow | flow-multi |
+#      tiedye | ribbon — the last two loud/psychedelic, the rest calm).
 #     Needs numpy + Pillow; falls back to SOLID if they're missing.
 #
 # Both stay in-hue with the terminal and pair well with 0% window transparency.
@@ -27,7 +28,8 @@
 # Env:
 #   THEME_WALLPAPER_SIZE   output WxH (default 7680x3240)
 #   THEME_WALLPAPER_STYLE  texture style: mesh | contour | contour-multi | flat |
-#                          lowpoly | dot | flow | flow-multi (default mesh)
+#                          lowpoly | dot | flow | flow-multi | tiedye | ribbon
+#                          (default mesh)
 #
 set -euo pipefail
 
