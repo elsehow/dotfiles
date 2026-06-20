@@ -54,8 +54,14 @@ font-size = 23
 background-opacity = 1.0
 background-blur-radius = 100
 macos-titlebar-style = "hidden"
-window-padding-x = 10
-window-padding-y = 10
+# window-padding-x matches the sketchybar left text inset (bar padding 14 + item
+# padding 4 + icon padding 8 = 26), and the bar margin == gaps.outer.left == 25, so
+# terminal text in a left-column window lines up under the bar's leftmost label.
+# balance must stay OFF or it adds variable leftover padding on the left and breaks
+# that alignment (the extra space goes to the right edge instead).
+window-padding-balance = false
+window-padding-x = 26
+window-padding-y = 20
 mouse-hide-while-typing = true
 window-decoration = true
 
