@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""theme-texture — render a subtle procedural wallpaper from a theme palette.
+
+This is the "art file": a mesh (inverse-distance) gradient over a few control
+points that all hover near a base color with gentle accent tints, finished with
+ordered (Bayer) dithering to kill 8-bit banding and add a faint terminal-ish
+texture. Designed to sit calmly BEHIND tiled windows — low contrast, value near
+the base, no busy focal point.
+
+Swap the body of render() for any look you like (flow field, fBm, voronoi,
+domain-warped noise…). The contract is just: take a base color + accents + seed,
+return a PIL Image. Prototype shaders live in glslViewer / Shadertoy, then port
+the math here so the pipeline stays headless.
+
+Usage:
+  theme-texture --out PATH --size WxH --base "#rrggbb" \
+                --accents "#r1,#g2,#b4" [--seed N] [--blend 0.22] \
+                [--dither 2.5] [--power 3.0]
+"""
+import argparse
+import sys
+
+try:
+    import numpy as np
+    from PIL import Image
+except ImportError:
+    sys.stderr.write(
+        "theme-texture needs numpy + Pillow:  pip3 install numpy pillow\n"
+    )
+    sys.exit(2)
+
+# Standard 8x8 Bayer matrix (values 0..63) for ordered dithering.
+BAYER8 = np.array([
+    [ 0, 32,  8, 40,  2, 34, 10, 42],
+    [48, 16, 56, 24, 50, 18, 58, 26],
+    [12, 44,  4, 36, 14, 46,  6, 38],
+    [60, 28, 52, 20, 62, 30, 54, 22],
+    [ 3, 35, 11, 43,  1, 33,  9, 41],
+    [51, 19, 59, 27, 49, 17, 57, 25],
+    [15, 47,  7, 39, 13, 45,  5, 37],
+    [63, 31, 55, 23, 61, 29, 53, 21],
+], dtype=np.float32)
+
+
+def hex2rgb(h):
+    h = h.strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], dtype=np.float32)
+
+
+def render(w, h, base_hex, accent_hexes, seed, blend, dither, power):
+    rng = np.random.default_rng(seed)
+    base = hex2rgb(base_hex)
+
+    lum = float(0.299 * base[0] + 0.587 * base[1] + 0.114 * base[2])
+    # Luminance-aware value swing: a dark base needs a much bigger light/dark
+    # spread to read as a gradient at all, while a light base should stay calm.
+    # `lift` is an absolute amount in 0..255 (big for dark themes, small for light).
+    lift = 45.0 * (1.0 - lum / 255.0) + 14.0
+    clip = lambda c: np.clip(c, 0.0, 255.0)
+
+    # Control points: a calm base anchor, a brighter and a darker pool to
+    # guarantee a visible gradient on any theme, then one tinted point per accent
+    # (each only `blend` of the way from base toward the accent).
+    cols, pts = [], []
+    cols.append(base.copy());            pts.append(rng.random(2))
+    cols.append(clip(base + lift));      pts.append(rng.random(2))
+    cols.append(clip(base - lift * 0.6)); pts.append(rng.random(2))
+    for a in accent_hexes:
+        cols.append(clip(base * (1.0 - blend) + hex2rgb(a) * blend))
+        pts.append(rng.random(2))
+    cols = np.array(cols, dtype=np.float32)            # K x 3
+    pts = np.array(pts, dtype=np.float32)              # K x 2
+
+    xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
+    ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
+    # Aspect-correct the x axis so blobs stay round, not stretched.
+    gx, gy = np.meshgrid(xs * (w / h), ys)
+
+    acc = np.zeros((h, w, 3), dtype=np.float32)
+    wsum = np.zeros((h, w), dtype=np.float32)
+    for (px, py), col in zip(pts, cols):
+        d2 = (gx - px * (w / h)) ** 2 + (gy - py) ** 2 + 1e-3
+        weight = d2 ** (-power / 2.0)
+        wsum += weight
+        acc += weight[..., None] * col[None, None, :]
+    img = acc / wsum[..., None]
+
+    if dither > 0:
+        ty = (h + 7) // 8
+        tx = (w + 7) // 8
+        tile = np.tile(BAYER8 / 64.0, (ty, tx))[:h, :w]
+        img = img + (tile[..., None] - 0.5) * dither
+
+    out = np.clip(np.round(img), 0, 255).astype(np.uint8)
+    return Image.fromarray(out)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="procedural theme wallpaper")
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--size", default="7680x3240", help="WxH")
+    ap.add_argument("--base", required=True, help="#rrggbb base/gutter color")
+    ap.add_argument("--accents", default="", help="comma-separated #rrggbb")
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--blend", type=float, default=0.22,
+                    help="0..1 how far control colors move from base toward accents")
+    ap.add_argument("--dither", type=float, default=2.5,
+                    help="ordered-dither amplitude in 0..255 levels (0 = off)")
+    ap.add_argument("--power", type=float, default=3.0,
+                    help="inverse-distance falloff exponent (higher = sharper blobs)")
+    a = ap.parse_args()
+
+    w, h = (int(x) for x in a.size.lower().split("x"))
+    accents = [c for c in a.accents.split(",") if c.strip()]
+    img = render(w, h, a.base, accents, a.seed, a.blend, a.dither, a.power)
+    img.save(a.out)
+
+
+if __name__ == "__main__":
+    main()

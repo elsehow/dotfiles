@@ -22,7 +22,7 @@ FALLBACK_FONT="Inconsolata"   # installed monospace; closest to the intended loo
 # opacity over different backdrops, so identical numbers do NOT look identical.
 # To match the terminal, sketchybar usually needs LOWER opacity + HIGHER blur
 # than Ghostty's literal values. Leave a value empty ("") to use Ghostty's.
-OPACITY_OVERRIDE="0.40"   # bar white opacity, 0..1   (Ghostty's is 0.6)
+OPACITY_OVERRIDE="1.0"    # bar white opacity, 0..1   (Ghostty's is 0.6)
 BLUR_OVERRIDE="150"       # sketchybar blur radius     (Ghostty's is 100)
 
 cfg="$("$GHOSTTY_BIN" +show-config 2>/dev/null || true)"

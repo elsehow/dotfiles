@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+#
+# set-theme — set the Ghostty theme and re-sync everything in one shot:
+#   • writes `theme = <name>` into the Ghostty config
+#   • reloads the sketchybar (re-derives its palette + font from the new theme)
+#   • repaints the desktop wallpaper from the theme (theme-wallpaper --texture)
+#   • reloads live Ghostty windows (if Ghostty is frontmost)
+#
+# Usage:
+#   set-theme "<theme name>"        set the theme (quotes optional; multi-word ok)
+#   set-theme --random [light|dark] pick a random theme (optionally only light/dark)
+#   set-theme --opacity <0..1>      terminal bg opacity (default 1; with a theme,
+#                                   or alone to re-apply the current theme)
+#   set-theme --list                list available theme names
+#   set-theme --current             show the currently configured theme
+#
+# After running, `sketchybar --reload` is done for you. Pairs with
+# ~/.config/sketchybar/generate-theme.sh, which reads `ghostty +show-config`.
+set -euo pipefail
+
+GB="/Applications/Ghostty.app/Contents/MacOS/ghostty"
+CFG="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+
+# Available theme names, with the trailing " (resources)"/" (user)" tag stripped.
+themes() { "$GB" +list-themes --plain 2>/dev/null | sed -E 's/ \((resources|user)\)$//'; }
+
+# Where Ghostty keeps its theme files (each has a `background = #rrggbb` line).
+THEME_DIRS="/Applications/Ghostty.app/Contents/Resources/ghostty/themes:$HOME/.config/ghostty/themes"
+
+# Pick a random theme name. Optional $1 = light|dark filters by background
+# luminance (read straight from the theme files). awk's srand()/rand() avoids
+# depending on `sort -R`/`shuf`/bash 4 (macOS ships bash 3.2).
+random_theme() {
+  local filter="${1:-}" list
+  if [ -z "$filter" ]; then
+    list="$(themes)"
+  else
+    list="$(python3 - "$filter" "$THEME_DIRS" <<'PY'
+import os, sys
+filt = sys.argv[1].lower()
+def rgb(h):
+    h = h.strip().lstrip('#')
+    if len(h) == 3: h = ''.join(c*2 for c in h)
+    try: return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+    except Exception: return None
+def lum(c): return 0.299*c[0] + 0.587*c[1] + 0.114*c[2]
+seen, out = set(), []
+for d in sys.argv[2].split(':'):
+    if not os.path.isdir(d): continue
+    for name in sorted(os.listdir(d)):
+        p = os.path.join(d, name)
+        if name in seen or not os.path.isfile(p): continue
+        bg = None
+        try:
+            for line in open(p, encoding='utf-8', errors='ignore'):
+                if line.startswith('background'):
+                    bg = rgb(line.split('=', 1)[1]); break
+        except Exception: continue
+        if not bg: continue
+        if (filt == 'light') == (lum(bg) >= 140):
+            seen.add(name); out.append(name)
+print('\n'.join(out))
+PY
+)"
+  fi
+  printf '%s\n' "$list" | awk 'BEGIN{srand()} NF{a[++n]=$0} END{if(n)print a[int(rand()*n)+1]}'
+}
+
+# Write `key = value` into the Ghostty config IN PLACE. Critical: write through
+# the symlink with `cat > "$CFG"` rather than `mv` over it — `mv` would replace
+# the stow symlink with a real file and silently detach the config from the repo.
+set_cfg() {
+  local key="$1" val="$2" tmp
+  tmp="$(mktemp)"
+  if grep -q "^$key = " "$CFG"; then
+    awk -v line="$key = $val" -v pat="^$key = " '$0 ~ pat && !d {print line; d=1; next} {print}' "$CFG" > "$tmp"
+  else
+    cat "$CFG" > "$tmp"; printf '%s = %s\n' "$key" "$val" >> "$tmp"
+  fi
+  cat "$tmp" > "$CFG"
+  rm -f "$tmp"
+}
+
+# ── Pull --opacity out of the args (default 1.0); the rest is the theme spec. ──
+OPACITY=1.0; OPACITY_SET=0
+_args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --opacity)   OPACITY="${2:?--opacity needs a value 0..1}"; OPACITY_SET=1; shift 2 ;;
+    --opacity=*) OPACITY="${1#--opacity=}"; OPACITY_SET=1; shift ;;
+    *)           _args+=("$1"); shift ;;
+  esac
+done
+set -- ${_args[@]+"${_args[@]}"}
+
+# `set-theme --opacity V` with no theme → re-apply the current theme at opacity V.
+if [ $# -eq 0 ] && [ "$OPACITY_SET" = 1 ]; then
+  cur="$("$GB" +show-config 2>/dev/null | grep -m1 '^theme = ' | sed 's/^theme = //' || true)"
+  [ -n "$cur" ] && set -- "$cur"
+fi
+
+case "${1:-}" in
+  ""|-h|--help)
+    sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -l|--list)
+    themes; exit 0 ;;
+  --current)
+    cur="$("$GB" +show-config 2>/dev/null | grep -m1 '^theme = ' | sed 's/^theme = //' || true)"
+    [ -n "$cur" ] && echo "$cur" || echo "(no theme set)"
+    exit 0 ;;
+  -r|--random)
+    # Optional filter: light | dark. Falls through to the same validate + apply
+    # path below.
+    filter="${2:-}"
+    case "$filter" in
+      light|dark|"") ;;
+      *) echo "usage: set-theme --random [light|dark]" >&2; exit 1 ;;
+    esac
+    theme="$(random_theme "$filter" || true)"
+    [ -z "$theme" ] && { echo "no ${filter} themes found" >&2; exit 1; }
+    echo "🎲 random ${filter:+$filter }theme → $theme" ;;
+  *)
+    theme="$*" ;;   # join args so unquoted multi-word names work too
+esac
+
+# Validate (case-insensitive, whole-line) and normalize to the canonical casing.
+match="$(themes | grep -ixF "$theme" || true)"
+if [ -z "$match" ]; then
+  echo "unknown theme: '$theme'" >&2
+  near="$(themes | grep -iF "$theme" | head -10 || true)"
+  [ -n "$near" ] && { echo "did you mean:" >&2; echo "$near" | sed 's/^/  /' >&2; }
+  echo "(run: set-theme --list)" >&2
+  exit 1
+fi
+theme="$match"
+
+# Update the theme + background-opacity in the Ghostty config (symlink-safe).
+set_cfg theme "$theme"
+set_cfg background-opacity "$OPACITY"
+
+# Re-sync the bar — generate-theme.sh re-reads the (now updated) ghostty config.
+sketchybar --reload >/dev/null 2>&1 || true
+
+# Repaint the desktop from the new theme (if theme-wallpaper is installed). Reads
+# the just-written config, so it picks up the new theme's colors. Defaults to the
+# procedural texture; set THEME_WALLPAPER_MODE=--solid for a flat color instead.
+# (--texture falls back to solid on its own if numpy/Pillow aren't present.)
+if command -v theme-wallpaper >/dev/null 2>&1; then
+  theme-wallpaper "${THEME_WALLPAPER_MODE:---texture}" >/dev/null 2>&1 || true
+fi
+
+# Reload live Ghostty windows via its reload_config keybind (⌘⇧,). Only when
+# Ghostty is frontmost, so we never misfire the keystroke into another app.
+front="$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null || true)"
+if printf '%s' "$front" | grep -qi ghostty; then
+  osascript -e 'tell application "System Events" to keystroke "," using {command down, shift down}' 2>/dev/null || true
+  note="live windows reloaded"
+else
+  note="reload open windows with ⌘⇧, (new windows already use it)"
+fi
+
+echo "✔ Ghostty theme → ${theme}  (opacity ${OPACITY})"
+echo "✔ sketchybar re-synced · ${note}"

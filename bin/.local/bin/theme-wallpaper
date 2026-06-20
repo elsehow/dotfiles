@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+#
+# theme-wallpaper — set the macOS desktop from the current Ghostty theme.
+#
+# Two modes:
+#   • SOLID (default) — a single color: the theme background DARKENED, so the
+#     tiling gaps read as a recessed gutter and windows appear to float. Light
+#     themes darken to a warm "paper" gray; dark themes to a deep gutter. Pure
+#     stdlib, works on any machine.
+#   • TEXTURE (--texture) — a subtle procedural wallpaper rendered from the
+#     theme's full palette (mesh gradient + ordered dither) via theme-texture.
+#     Needs numpy + Pillow; falls back to SOLID if they're missing.
+#
+# Both stay in-hue with the terminal and pair well with 0% window transparency.
+#
+# Usage:
+#   theme-wallpaper             solid color derived from the live theme
+#   theme-wallpaper --solid     same (explicit)
+#   theme-wallpaper "#1e1e2e"   solid, explicit color (exact bg = seamless)
+#   theme-wallpaper --texture   procedural wallpaper from the theme palette
+#
+# set-theme repaints with --texture by default; set THEME_WALLPAPER_MODE=--solid
+# to make it use a solid color instead.
+#
+# Env:
+#   THEME_WALLPAPER_SIZE   output WxH (default 7680x3240)
+#
+set -euo pipefail
+
+GB=/Applications/Ghostty.app/Contents/MacOS/ghostty
+SIZE="${THEME_WALLPAPER_SIZE:-7680x3240}"
+CACHE="$HOME/.cache/theme-wallpaper"
+
+# Capture the resolved config once (one ghostty call, no SIGPIPE under pipefail).
+cfg="$("$GB" +show-config 2>/dev/null || true)"
+get() { printf '%s\n' "$cfg" | grep -m1 "^$1 = " | sed "s/^$1 = //" || true; }
+
+# Darken a #rrggbb toward black (preserves hue, so warm whites stay warm).
+darken() {
+  python3 - "$1" <<'PY'
+import sys
+def rgb(h):
+    h = h.lstrip('#')
+    if len(h) == 3: h = ''.join(c*2 for c in h)
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+print('#%02x%02x%02x' % tuple(round(x*0.65) for x in rgb(sys.argv[1])))
+PY
+}
+
+set_wallpaper() { # path
+  osascript -e "tell application \"System Events\" to set picture of every desktop to \"$1\"" >/dev/null 2>&1 || true
+}
+
+solid_png() { # hex path  — pure-stdlib solid PNG (no numpy/PIL needed)
+  python3 - "$1" "$2" <<'PY'
+import sys, zlib, struct
+hexv, path = sys.argv[1], sys.argv[2]
+r, g, b = (int(hexv[i:i+2], 16) for i in (0, 2, 4))
+w = h = 64
+raw = (b'\x00' + bytes((r, g, b)) * w) * h           # filter byte 0 + RGB pixels
+def chunk(t, d):
+    c = t + d
+    return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+png  = b'\x89PNG\r\n\x1a\n'
+png += chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))   # 8-bit RGB
+png += chunk(b'IDAT', zlib.compress(raw, 9))
+png += chunk(b'IEND', b'')
+open(path, 'wb').write(png)
+PY
+}
+
+set_solid() {
+  local bg color hex out
+  bg="$(get background)"; bg="${bg:-#1e1e2e}"
+  if [ -n "${1:-}" ]; then color="$1"; else color="$(darken "$bg")"; fi
+  hex="${color#\#}"
+  out="$CACHE/${hex}.png"
+  mkdir -p "$CACHE"
+  solid_png "$hex" "$out"
+  set_wallpaper "$out"
+  echo "✔ wallpaper → #${hex}   (theme bg ${bg})"
+}
+
+set_texture() {
+  local bg name base hexb accents seed key out
+  bg="$(get background)"; bg="${bg:-#1e1e2e}"
+  name="$(get theme)"; name="${name:-default}"
+  base="$(darken "$bg")"; hexb="${base#\#}"
+  # Accents = the colorful end of the 16-color ANSI palette (red/green/blue/
+  # magenta); fall back to the foreground if a theme defines no palette.
+  accents="$(printf '%s\n' "$cfg" | grep -E '^palette = (1|2|4|5)=' | sed -E 's/.*=//' | paste -sd, -)"
+  [ -z "$accents" ] && accents="$(get foreground)"
+  seed="$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
+  key="$(printf '%s' "${name}|${base}|${accents}|v1|${SIZE}" | cksum | cut -d' ' -f1)"
+  out="$CACHE/tex-${key}.png"
+  mkdir -p "$CACHE"
+  # Cache by content key: re-switching to a theme reuses its render instantly.
+  if [ ! -f "$out" ]; then
+    if ! theme-texture --out "$out" --size "$SIZE" --base "$base" --accents "$accents" --seed "$seed"; then
+      echo "↩ texture unavailable — falling back to solid" >&2
+      set_solid; return
+    fi
+  fi
+  set_wallpaper "$out"
+  echo "✔ texture → base #${hexb}, accents ${accents}   (theme ${name})"
+}
+
+case "${1:-}" in
+  -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  --texture) set_texture ;;
+  --solid)   set_solid ;;
+  *)         set_solid "${1:-}" ;;
+esac

@@ -35,6 +35,13 @@ mkdir -p "$HOME/.config" "$HOME/.local/bin" \
          "$HOME/Library/Application Support/com.mitchellh.ghostty"
 stow --target="$HOME" --restow aerospace sketchybar bin ghostty
 
+# ── 2b. Optional: texture-wallpaper deps ─────────────────────────────────────
+# `theme-wallpaper --texture` renders a procedural wallpaper with numpy + Pillow.
+# Solid mode (default) is pure-stdlib, so this is best-effort — don't fail setup.
+echo "==> pip install numpy + Pillow (for theme-wallpaper --texture; optional)"
+python3 -m pip install --quiet --user numpy pillow 2>/dev/null \
+  || echo "    (skipped — texture mode will fall back to solid until installed)"
+
 # ── 3. Start services ────────────────────────────────────────────────────────
 echo "==> starting sketchybar + reloading aerospace"
 brew services start sketchybar >/dev/null 2>&1 || sketchybar --reload || true
@@ -43,4 +50,4 @@ aerospace reload-config 2>/dev/null || \
 
 echo
 echo "✔ Done. Log out/in (or launch AeroSpace) to start the window manager."
-echo "  Switch themes with:  ghostty-theme \"<theme name>\""
+echo "  Switch themes with:  set-theme \"<theme name>\""

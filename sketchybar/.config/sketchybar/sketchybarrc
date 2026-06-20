@@ -28,8 +28,8 @@ if command -v borders >/dev/null 2>&1; then
   borders active_color=$BORDER_ACTIVE inactive_color=$BORDER_INACTIVE width=6 >/dev/null 2>&1 &
 fi
 
-FONT_LABEL="$GHOSTTY_FONT:Regular:16.0"
-FONT_ICON="$GHOSTTY_FONT:Bold:16.0"
+FONT_LABEL="$GHOSTTY_FONT:Regular:17.0"
+FONT_ICON="$GHOSTTY_FONT:Bold:17.0"
 
 # Workspace items, in keyboard order. ꩜ is an emoji workspace name.
 WORKSPACES=(mf xrisk relevantbench 4 5 6 7 8 9 "꩜")
