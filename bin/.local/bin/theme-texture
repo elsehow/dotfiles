@@ -14,16 +14,18 @@ Styles (--style):
   contour  topographic iso-lines (a smooth value field sliced into bands) drawn in
            an accent over the base. On-brand for a terminal rice; light themes
            look like a cream contour map, dark themes like faint colored lines.
+  contour-multi  same iso-lines, but each elevation band a different accent —
+           a multicolor topo map.
   flat     the calmest: a single soft corner-to-corner directional gradient with a
            whisper of accent glow in one corner. Closest to a plain matte wall.
-  lowpoly  flat-shaded triangle facets (jittered grid, no scipy) shaded from a
-           smooth field with a faint accent tint. Geometric but calm.
-  dot      a fine regular dot grid a touch off the base (perfboard / graph-paper).
-           Minimal and static; dots move toward contrast so light themes show too.
-  halftone overlapping ben-day dot screens in two accents at print angles, dot
-           size driven by a density field. The most assertive — a riso/print look.
+  lowpoly  flat-shaded triangle facets (jittered grid, no scipy). Facets organize
+           into palette color regions; geometric but calm.
+  dot      a fine, tightly-spaced dot grid a touch off the base (perfboard /
+           graph-paper). Minimal; dots move toward contrast so light themes show.
   flow     thousands of particles streamed along a noise vector field into glowing
            palette-tinted streamlines. The dynamic one — sinuous and organic.
+  flow-multi  flow, but particles are hued by their start position so the palette
+           flows in coherent multicolor bands across the canvas.
 
 Base treatment is luminance-aware and lives HERE (not in the caller): pass the
 RAW theme background as --base. Dark themes darken hard into a recessed gutter;
@@ -40,7 +42,7 @@ glslViewer / Shadertoy, then port the math here so the pipeline stays headless.
 Usage:
   theme-texture --out PATH --size WxH --base "#rrggbb" \
                 --accents "#r1,#g2,#b4" [--seed N] \
-                [--style mesh|contour|flat|lowpoly|dot|halftone|flow] \
+                [--style mesh|contour|contour-multi|flat|lowpoly|dot|flow|flow-multi] \
                 [--blend 0.20] [--dither 2.0] [--grain 3.0] [--power 1.6]
 """
 import argparse
@@ -182,7 +184,7 @@ def render_mesh(w, h, base, accents, seed, opts):
     return _finish(to_srgb(img), w, h, seed, opts["dither"], opts["grain"])
 
 
-def render_contour(w, h, base, accents, seed, opts):
+def _contour(w, h, base, accents, seed, opts, multi):
     rng = np.random.default_rng(seed)
     xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
     ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
@@ -195,15 +197,38 @@ def render_contour(w, h, base, accents, seed, opts):
         f += np.sin(ax * gx * math.pi + ay * gy * math.pi + ph)
     f = (f - f.min()) / (np.ptp(f) + 1e-9)
 
-    sel = pick_accents(accents, seed, 1)
-    line = hex2rgb(sel[0]) if sel else np.clip(base + 40, 0, 255)
-    base_img = np.ones((h, w, 3), dtype=np.float32) * base[None, None, :]
     n = 14                                   # number of iso-bands
+    base_img = np.ones((h, w, 3), dtype=np.float32) * base[None, None, :]
     fr = (f * n) % 1.0
     edge = np.minimum(fr, 1.0 - fr)
-    mask = np.clip(1.0 - edge / 0.04, 0.0, 1.0) * 0.5   # faint lines
-    out = base_img * (1.0 - mask[..., None]) + line[None, None, :] * mask[..., None]
+
+    if multi:
+        # Each elevation band drawn in a different accent (cycling), plus a faint
+        # per-band base tint so the bands read even between the lines.
+        sel = pick_accents(accents, seed)
+        if not sel:
+            sel = ["#%02x%02x%02x" % tuple(np.clip(base + 40, 0, 255).astype(int))]
+        pal = np.array([hex2rgb(a) for a in sel], dtype=np.float32)
+        bi = np.clip((f * n).astype(np.int64), 0, n - 1)
+        linecol = pal[bi % len(pal)]                       # h x w x 3
+        mask = np.clip(1.0 - edge / 0.04, 0.0, 1.0) * 0.55
+        tint = 0.06
+        band = base_img * (1.0 - tint) + linecol * tint
+        out = band * (1.0 - mask[..., None]) + linecol * mask[..., None]
+    else:
+        sel = pick_accents(accents, seed, 1)
+        line = hex2rgb(sel[0]) if sel else np.clip(base + 40, 0, 255)
+        mask = np.clip(1.0 - edge / 0.04, 0.0, 1.0) * 0.5   # faint lines
+        out = base_img * (1.0 - mask[..., None]) + line[None, None, :] * mask[..., None]
     return _finish(out, w, h, seed, 0.0, opts["grain"])
+
+
+def render_contour(w, h, base, accents, seed, opts):
+    return _contour(w, h, base, accents, seed, opts, multi=False)
+
+
+def render_contour_multi(w, h, base, accents, seed, opts):
+    return _contour(w, h, base, accents, seed, opts, multi=True)
 
 
 def render_flat(w, h, base, accents, seed, opts):
@@ -248,13 +273,29 @@ def _blur5(a):
     return sum(k[i] * pad[i:i + a.shape[0], :] for i in range(5))
 
 
-def render_flow(w, h, base, accents, seed, opts):
+def _cmap_sample(pal, t):
+    """Sample a palette (m x3 sRGB) as a smooth colormap at t in 0..1, mixing
+    neighbors in linear light. Used to give each flow particle a position-based
+    hue so adjacent streams share color (coherent bands, no muddy averaging)."""
+    m = len(pal)
+    if m == 1:
+        return np.repeat(pal, len(t), axis=0)
+    pos = np.clip(t, 0, 1) * (m - 1)
+    i0 = np.clip(np.floor(pos).astype(np.int64), 0, m - 2)
+    fr = (pos - i0)[..., None]
+    lin = to_lin(pal)
+    return to_srgb(lin[i0] * (1.0 - fr) + lin[i0 + 1] * fr)
+
+
+def _flow(w, h, base, accents, seed, opts, multi):
     """Flow field: thousands of particles streamed along a noise vector field,
-    accumulated into an ink buffer and composited over the base. The dynamic one
-    — sinuous, organic streamlines tinted from the palette."""
+    accumulated into an ink buffer and composited over the base.
+      single — each particle a random accent pulled toward base (calm glow).
+      multi  — particles hued by a smooth field of their start position, accents
+               kept saturated → coherent multicolor streams across the canvas."""
     rng = np.random.default_rng(seed)
-    n = 4200            # particles
-    steps = 320         # integration steps per particle
+    n = 4600 if multi else 4200            # particles
+    steps = 320                            # integration steps per particle
     step_px = max(1.5, w / 900.0)
 
     # Analytic noise field: theta(x,y) = a weighted sum of low-frequency sines,
@@ -274,17 +315,31 @@ def render_flow(w, h, base, accents, seed, opts):
 
     px = rng.random(n) * w
     py = rng.random(n) * h
-    # Each particle carries one accent (shuffled), pulled toward base so streaks
-    # glow rather than scream.
     sel = pick_accents(accents, seed)
     if not sel:
         sel = ["#%02x%02x%02x" % tuple(np.clip(base + 50, 0, 255).astype(int))]
-    acc_rgb = np.array([hex2rgb(a) for a in sel], dtype=np.float32) * 0.7 + base * 0.3
-    pcol = acc_rgb[rng.integers(0, len(acc_rgb), n)]
+
+    if multi:
+        # Hue by a smooth field of the START position → coherent color bands.
+        pal = np.array([hex2rgb(a) for a in sel], dtype=np.float32) * 0.92 + base * 0.08
+        nx0, ny0 = px / w, py / h
+        cp = rng.random(2) * 6.28318
+        tg = (np.sin(1.7 * nx0 * math.pi + 1.1 * ny0 * math.pi + cp[0])
+              + 0.6 * np.sin(2.3 * ny0 * math.pi - 0.9 * nx0 * math.pi + cp[1]))
+        tg = (tg - tg.min()) / (np.ptp(tg) + 1e-9)
+        pcol = _cmap_sample(pal, tg)
+        alpha = opts["flow_alpha"] * 1.25
+        comp_max = 0.82
+    else:
+        # Each particle a random accent, pulled toward base so streaks glow.
+        acc_rgb = np.array([hex2rgb(a) for a in sel], dtype=np.float32) * 0.7 + base * 0.3
+        pcol = acc_rgb[rng.integers(0, len(acc_rgb), n)]
+        alpha = opts["flow_alpha"]
+        comp_max = 0.75
 
     ink = np.zeros((h, w), dtype=np.float32)
     colacc = np.zeros((h, w, 3), dtype=np.float32)
-    a_per = (opts["flow_alpha"] / (steps ** 0.5)) * 6.0
+    a_per = (alpha / (steps ** 0.5)) * 6.0
     for _ in range(steps):
         th = theta(px / w, py / h)
         px = px + np.cos(th) * step_px
@@ -305,9 +360,17 @@ def render_flow(w, h, base, accents, seed, opts):
     streak = colacc / np.maximum(ink, 1e-6)[..., None]
 
     base_lin = to_lin(np.ones((h, w, 3), dtype=np.float32) * base[None, None, :])
-    comp = np.clip(np.clip(ink, 0, 1), 0, 0.75)[..., None]
+    comp = np.clip(np.clip(ink, 0, 1), 0, comp_max)[..., None]
     out = to_srgb(base_lin * (1.0 - comp) + to_lin(streak) * comp)
     return _finish(out, w, h, seed, 2.0, opts["grain"])
+
+
+def render_flow(w, h, base, accents, seed, opts):
+    return _flow(w, h, base, accents, seed, opts, multi=False)
+
+
+def render_flow_multi(w, h, base, accents, seed, opts):
+    return _flow(w, h, base, accents, seed, opts, multi=True)
 
 
 def _smooth_field(w, h, seed, octaves=4):
@@ -344,13 +407,17 @@ def render_lowpoly(w, h, base, accents, seed, opts):
             y = (j + (rng.random() - 0.5) * jit) / rows
             P[j, i] = (x * w, y * h)
     field = _smooth_field(64, 64, seed)
-    sel = pick_accents(accents, seed, 1)
-    acc = hex2rgb(sel[0]) if sel else np.clip(base + lift, 0, 255)
+    sel = pick_accents(accents, seed)
+    pal = [hex2rgb(a) for a in sel] if sel else [np.clip(base + lift, 0, 255)]
+    m = len(pal)
 
     def color_at(cx, cy, fr):
         fv = field[int(np.clip(cy / h * 63, 0, 63)), int(np.clip(cx / w * 63, 0, 63))]
         c = base + (fv - 0.5) * 2.0 * lift + (fr - 0.5) * 2.0 * fjit
-        t = 0.12 * max(0.0, fv - 0.55)           # faint accent tint in the highs
+        # Tint each facet toward a palette color chosen by the field value, so the
+        # facets organize into coherent color regions (red zone, green zone, …).
+        acc = pal[min(m - 1, int(fv * m))]
+        t = 0.24
         c = c * (1.0 - t) + acc * t
         return tuple(np.clip(c, 0, 255).astype(int))
 
@@ -369,53 +436,32 @@ def render_dot(w, h, base, accents, seed, opts):
     # Move dots TOWARD contrast: lighter on dark themes, darker on light themes,
     # so the grid is visible either way.
     sign = -1.0 if L > 0.5 else 1.0
-    amt = max(13.0, 16.0 * (1.0 - L) + 9.0)
-    s = max(16, w // 90)
-    r = s * 0.16
+    amt = max(20.0, 26.0 * (1.0 - L) + 14.0)
+    # Small, tightly-spaced dots — a fine perfboard/graph-paper grain.
+    s = max(9, w // 150)
+    r = max(1.7, s * 0.26)
     X, Y = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
     dx = (X % s) - s / 2.0
     dy = (Y % s) - s / 2.0
     dist = np.sqrt(dx * dx + dy * dy)
-    mask = np.clip((r - dist) / 1.5, 0.0, 1.0)
+    mask = np.clip((r - dist) / 0.9, 0.0, 1.0)
     sel = pick_accents(accents, seed, 1)
     acc = hex2rgb(sel[0]) if sel else base
-    dot = np.clip(base + sign * amt, 0, 255) * 0.9 + acc * 0.1
+    dot = np.clip(base + sign * amt, 0, 255) * 0.88 + acc * 0.12
     img = np.ones((h, w, 3), dtype=np.float32) * base[None, None, :]
     img = img * (1.0 - mask[..., None]) + dot[None, None, :] * mask[..., None]
     return _finish(img, w, h, seed, opts["dither"], opts["grain"])
 
 
-def render_halftone(w, h, base, accents, seed, opts):
-    g = _smooth_field(w, h, seed, octaves=3)        # ink-density field
-    img = to_lin(np.ones((h, w, 3), dtype=np.float32) * base[None, None, :])
-    X, Y = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
-    sel = pick_accents(accents, seed, 2)
-    if not sel:
-        sel = ["#%02x%02x%02x" % tuple(np.clip(base + 40, 0, 255).astype(int))]
-    angles = [15, 75]
-    s = max(10, w // 120)
-    for k, a in enumerate(sel):
-        th = math.radians(angles[k % len(angles)])
-        u = X * math.cos(th) + Y * math.sin(th)
-        v = -X * math.sin(th) + Y * math.cos(th)
-        du = (u % s) - s / 2.0
-        dv = (v % s) - s / 2.0
-        dist = np.sqrt(du * du + dv * dv)
-        rad = s * 0.5 * np.clip(g * 1.1, 0.0, 1.0)  # bigger dots where denser
-        cov = np.clip((rad - dist) / 1.5, 0.0, 1.0) * 0.55
-        ac = to_lin(hex2rgb(a))
-        img = img * (1.0 - cov[..., None]) + ac[None, None, :] * cov[..., None]
-    return _finish(to_srgb(img), w, h, seed, 0.0, opts["grain"])
-
-
 STYLES = {
     "mesh": render_mesh,
     "contour": render_contour,
+    "contour-multi": render_contour_multi,
     "flat": render_flat,
     "lowpoly": render_lowpoly,
     "dot": render_dot,
-    "halftone": render_halftone,
     "flow": render_flow,
+    "flow-multi": render_flow_multi,
 }
 
 

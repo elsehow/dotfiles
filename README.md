@@ -63,24 +63,26 @@ Restow after editing/pulling: `cd ~/dotfiles && stow --restow aerospace sketchyb
   dark themes → deep gutter. Pure-stdlib, works everywhere.
   `theme-wallpaper "#1e1e2e"` forces an explicit color (exact bg = seamless).
 - **Texture (`theme-wallpaper --texture [style]`)** — a subtle procedural
-  wallpaper rendered from the theme's 16-color ANSI palette, in one of seven
+  wallpaper rendered from the theme's 16-color ANSI palette, in one of eight
   **styles** (calmest → most dynamic):
   - `flat` — a single soft corner-to-corner gradient with a whisper of accent
     glow. The calmest; closest to a plain matte wall.
-  - `dot` — a fine regular dot grid a touch off the base (perfboard / graph-
-    paper). Minimal and static; dots move toward contrast so light themes show.
+  - `dot` — a fine, tightly-spaced dot grid a touch off the base (perfboard /
+    graph-paper). Minimal; dots move toward contrast so light themes show too.
   - `mesh` (default) — soft inverse-distance gradient. Bright/dark/accent pools
     are pushed to the rim with a center vignette (so windows sit on calm ground),
     colors mix in linear-light (no muddy brown between accents), and a luminance-
     aware darken keeps light "paper" themes papery instead of crushing them grey.
-  - `lowpoly` — flat-shaded triangle facets (jittered grid, no scipy) shaded from
-    a smooth field with a faint accent tint. Geometric but calm.
+  - `lowpoly` — flat-shaded triangle facets (jittered grid, no scipy); facets
+    organize into palette color regions. Geometric but calm.
   - `contour` — topographic iso-lines in an accent over the base. On-brand for a
     terminal rice; light themes read as a cream contour map.
-  - `halftone` — overlapping ben-day dot screens in two accents at print angles.
-    The most assertive — a riso/print look.
+  - `contour-multi` — same iso-lines, each elevation band a different accent: a
+    multicolor topo map.
   - `flow` — thousands of particles streamed along a noise vector field into
     glowing palette-tinted streamlines. The dynamic one — sinuous and organic.
+  - `flow-multi` — flow, but particles are hued by their start position so the
+    palette flows in coherent multicolor bands across the canvas.
 
   Accent choice is shuffled per-theme, so a style doesn't always grab the same
   palette slot (e.g. `contour` isn't perpetually red) while staying stable for a
