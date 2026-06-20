@@ -63,21 +63,29 @@ Restow after editing/pulling: `cd ~/dotfiles && stow --restow aerospace sketchyb
   dark themes → deep gutter. Pure-stdlib, works everywhere.
   `theme-wallpaper "#1e1e2e"` forces an explicit color (exact bg = seamless).
 - **Texture (`theme-wallpaper --texture [style]`)** — a subtle procedural
-  wallpaper rendered from the theme's 16-color ANSI palette, in one of three
-  **styles**:
+  wallpaper rendered from the theme's 16-color ANSI palette, in one of six
+  **styles** (calmest → most assertive):
+  - `flat` — a single soft corner-to-corner gradient with a whisper of accent
+    glow. The calmest; closest to a plain matte wall.
+  - `dot` — a fine regular dot grid a touch off the base (perfboard / graph-
+    paper). Minimal and static; dots move toward contrast so light themes show.
   - `mesh` (default) — soft inverse-distance gradient. Bright/dark/accent pools
     are pushed to the rim with a center vignette (so windows sit on calm ground),
     colors mix in linear-light (no muddy brown between accents), and a luminance-
     aware darken keeps light "paper" themes papery instead of crushing them grey.
+  - `lowpoly` — flat-shaded triangle facets (jittered grid, no scipy) shaded from
+    a smooth field with a faint accent tint. Geometric but calm.
   - `contour` — topographic iso-lines in an accent over the base. On-brand for a
     terminal rice; light themes read as a cream contour map.
-  - `flat` — a single soft corner-to-corner gradient with a whisper of accent
-    glow. The calmest; closest to a plain matte wall.
+  - `halftone` — overlapping ben-day dot screens in two accents at print angles.
+    The most assertive — a riso/print look.
 
-  The "art" lives in `theme-texture` (a numpy/Pillow script) — each style is a
-  `render_<name>()`; add one and register it in `STYLES`. Prototype shaders in
-  glslViewer/Shadertoy and port the math in. Needs numpy + Pillow (see Brewfile);
-  falls back to solid if absent.
+  Accent choice is shuffled per-theme, so a style doesn't always grab the same
+  palette slot (e.g. `contour` isn't perpetually red) while staying stable for a
+  given theme. The "art" lives in `theme-texture` (a numpy/Pillow script) — each
+  style is a `render_<name>()`; add one and register it in `STYLES`. Prototype
+  shaders in glslViewer/Shadertoy and port the math in. Needs numpy + Pillow (see
+  Brewfile); falls back to solid if absent.
 
 `set-theme` (incl. `--random`) uses texture by default. Roll the look with
 `set-theme --style contour` (or `mesh`/`flat`; pass alone to re-skin the current

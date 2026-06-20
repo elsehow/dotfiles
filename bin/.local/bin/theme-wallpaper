@@ -9,8 +9,8 @@
 #     stdlib, works on any machine.
 #   • TEXTURE (--texture) — a subtle procedural wallpaper rendered from the
 #     theme's full palette via theme-texture, in one of several STYLES
-#     (mesh | contour | flat). Needs numpy + Pillow; falls back to SOLID if
-#     they're missing.
+#     (mesh | contour | flat | lowpoly | dot | halftone). Needs numpy + Pillow;
+#     falls back to SOLID if they're missing.
 #
 # Both stay in-hue with the terminal and pair well with 0% window transparency.
 #
@@ -26,7 +26,8 @@
 #
 # Env:
 #   THEME_WALLPAPER_SIZE   output WxH (default 7680x3240)
-#   THEME_WALLPAPER_STYLE  texture style: mesh | contour | flat (default mesh)
+#   THEME_WALLPAPER_STYLE  texture style: mesh | contour | flat | lowpoly | dot |
+#                          halftone (default mesh)
 #
 set -euo pipefail
 
@@ -95,7 +96,7 @@ set_texture() {
   seed="$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
   # theme-texture takes the RAW bg (it does its own luminance-aware darken), so
   # the cache key tracks the raw bg + style + a schema version bump.
-  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|v2|${SIZE}" | cksum | cut -d' ' -f1)"
+  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|v3|${SIZE}" | cksum | cut -d' ' -f1)"
   out="$CACHE/tex-${STYLE}-${key}.png"
   mkdir -p "$CACHE"
   # Cache by content key: re-switching to a theme/style reuses its render instantly.

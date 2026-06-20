@@ -7,19 +7,29 @@ returning a PIL Image meant to sit calmly BEHIND tiled windows — low contrast,
 value near the base, quiet in the center where windows live.
 
 Styles (--style):
-  mesh    (default) soft inverse-distance gradient. Bright/dark/accent pools are
-          pushed to the RIM and a center vignette keeps the middle calm; colors
-          mix in linear-light (no muddy brown between complementary accents);
-          accents are desaturated toward the base. Reads as a matte wall.
-  contour topographic iso-lines (a smooth value field sliced into bands) drawn in
-          the first accent over the base. On-brand for a terminal rice; light
-          themes look like a cream contour map, dark themes like faint blue lines.
-  flat    the calmest: a single soft corner-to-corner directional gradient with a
-          whisper of accent glow in one corner. Closest to a plain matte wall.
+  mesh     (default) soft inverse-distance gradient. Bright/dark/accent pools are
+           pushed to the RIM and a center vignette keeps the middle calm; colors
+           mix in linear-light (no muddy brown between complementary accents);
+           accents are desaturated toward the base. Reads as a matte wall.
+  contour  topographic iso-lines (a smooth value field sliced into bands) drawn in
+           an accent over the base. On-brand for a terminal rice; light themes
+           look like a cream contour map, dark themes like faint colored lines.
+  flat     the calmest: a single soft corner-to-corner directional gradient with a
+           whisper of accent glow in one corner. Closest to a plain matte wall.
+  lowpoly  flat-shaded triangle facets (jittered grid, no scipy) shaded from a
+           smooth field with a faint accent tint. Geometric but calm.
+  dot      a fine regular dot grid a touch off the base (perfboard / graph-paper).
+           Minimal and static; dots move toward contrast so light themes show too.
+  halftone overlapping ben-day dot screens in two accents at print angles, dot
+           size driven by a density field. The most assertive — a riso/print look.
 
 Base treatment is luminance-aware and lives HERE (not in the caller): pass the
 RAW theme background as --base. Dark themes darken hard into a recessed gutter;
 light themes barely darken, so "paper" backgrounds stay warm and papery.
+
+Accent choice is shuffled per-seed (pick_accents), so styles don't always grab
+the same palette slot (e.g. contour isn't perpetually red) — but stays stable
+for a given theme, since the caller seeds from the theme name.
 
 Swap or add a style by writing a new render_<name>(w, h, base, accents, seed,
 opts) → PIL Image and registering it in STYLES. Prototype shaders in
@@ -27,7 +37,8 @@ glslViewer / Shadertoy, then port the math here so the pipeline stays headless.
 
 Usage:
   theme-texture --out PATH --size WxH --base "#rrggbb" \
-                --accents "#r1,#g2,#b4" [--seed N] [--style mesh|contour|flat] \
+                --accents "#r1,#g2,#b4" [--seed N] \
+                [--style mesh|contour|flat|lowpoly|dot|halftone] \
                 [--blend 0.20] [--dither 2.0] [--grain 3.0] [--power 1.6]
 """
 import argparse
@@ -36,7 +47,7 @@ import sys
 
 try:
     import numpy as np
-    from PIL import Image
+    from PIL import Image, ImageDraw
 except ImportError:
     sys.stderr.write(
         "theme-texture needs numpy + Pillow:  pip3 install numpy pillow\n"
@@ -88,6 +99,17 @@ def working_base(raw_bg):
     return c * k
 
 
+def pick_accents(accents, seed, n=None):
+    """Seeded shuffle of the accent list so styles don't always grab the same
+    palette slot (the caller hands them in a fixed red,green,blue,magenta order).
+    Deterministic per seed → stable for a given theme, varied across themes."""
+    if not accents:
+        return accents
+    rng = np.random.default_rng((seed ^ 0xACCE) & 0xFFFFFFFF)
+    out = [accents[i] for i in rng.permutation(len(accents))]
+    return out if n is None else out[:n]
+
+
 def _bayer_tile(w, h):
     ty = (h + 7) // 8
     tx = (w + 7) // 8
@@ -126,7 +148,7 @@ def render_mesh(w, h, base, accents, seed, opts):
     pts = [np.array([0.5, 0.5], dtype=np.float32)]   # base anchor = calm center
     cols.append(to_lin(np.clip(base + lift, 0, 255)));       pts.append(rim())
     cols.append(to_lin(np.clip(base - lift * 0.7, 0, 255))); pts.append(rim())
-    for a in accents[:2]:                            # at most 2, desaturated
+    for a in pick_accents(accents, seed, 2):         # at most 2, desaturated
         tint = np.clip(base * (1.0 - blend) + hex2rgb(a) * blend, 0, 255)
         cols.append(to_lin(tint));                           pts.append(rim())
     cols = np.array(cols, dtype=np.float32)
@@ -171,7 +193,8 @@ def render_contour(w, h, base, accents, seed, opts):
         f += np.sin(ax * gx * math.pi + ay * gy * math.pi + ph)
     f = (f - f.min()) / (np.ptp(f) + 1e-9)
 
-    line = hex2rgb(accents[0]) if accents else np.clip(base + 40, 0, 255)
+    sel = pick_accents(accents, seed, 1)
+    line = hex2rgb(sel[0]) if sel else np.clip(base + 40, 0, 255)
     base_img = np.ones((h, w, 3), dtype=np.float32) * base[None, None, :]
     n = 14                                   # number of iso-bands
     fr = (f * n) % 1.0
@@ -198,8 +221,9 @@ def render_flat(w, h, base, accents, seed, opts):
     img = lo[None, None, :] * (1 - t[..., None]) + hi[None, None, :] * t[..., None]
 
     # A whisper of accent glow in one corner.
-    if accents:
-        ac = to_lin(np.clip(base * 0.85 + hex2rgb(accents[0]) * 0.15, 0, 255))
+    sel = pick_accents(accents, seed, 1)
+    if sel:
+        ac = to_lin(np.clip(base * 0.85 + hex2rgb(sel[0]) * 0.15, 0, 255))
         cx, cy = rng.choice([0.08, 0.92]), rng.choice([0.1, 0.9])
         asp = w / h
         gxx, gyy = np.meshgrid(np.linspace(0, 1, w, dtype=np.float32) * asp,
@@ -211,10 +235,108 @@ def render_flat(w, h, base, accents, seed, opts):
     return _finish(to_srgb(img), w, h, seed, opts["dither"], opts["grain"])
 
 
+def _smooth_field(w, h, seed, octaves=4):
+    """A cheap smooth scalar field in 0..1: a sum of low-frequency sine waves."""
+    rng = np.random.default_rng(seed)
+    xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
+    ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
+    gx, gy = np.meshgrid(xs, ys)
+    f = np.zeros((h, w), dtype=np.float32)
+    for _ in range(octaves):
+        ax, ay = rng.normal(0, 2.5, 2)
+        ph = rng.random() * 6.28318
+        f += np.sin(ax * gx * math.pi + ay * gy * math.pi + ph)
+    return (f - f.min()) / (np.ptp(f) + 1e-9)
+
+
+def render_lowpoly(w, h, base, accents, seed, opts):
+    rng = np.random.default_rng(seed)
+    L = luma(base) / 255.0
+    lift = 38.0 * (1.0 - L) + 12.0
+    img = Image.new("RGB", (w, h), tuple(base.astype(int)))
+    d = ImageDraw.Draw(img)
+    cols = max(18, w // 90)
+    rows = max(8, int(cols * h / w))
+    # Jittered grid of vertices; each cell splits into two triangles.
+    jit = 0.42
+    P = np.empty((rows + 1, cols + 1, 2), dtype=np.float32)
+    for j in range(rows + 1):
+        for i in range(cols + 1):
+            x = (i + (rng.random() - 0.5) * jit) / cols
+            y = (j + (rng.random() - 0.5) * jit) / rows
+            P[j, i] = (x * w, y * h)
+    field = _smooth_field(64, 64, seed)
+    sel = pick_accents(accents, seed, 1)
+    acc = hex2rgb(sel[0]) if sel else np.clip(base + lift, 0, 255)
+
+    def color_at(cx, cy):
+        fv = field[int(np.clip(cy / h * 63, 0, 63)), int(np.clip(cx / w * 63, 0, 63))]
+        c = base + (fv - 0.5) * 2.0 * lift
+        t = 0.10 * max(0.0, fv - 0.6)            # faint accent tint in the highs
+        c = c * (1.0 - t) + acc * t
+        return tuple(np.clip(c, 0, 255).astype(int))
+
+    for j in range(rows):
+        for i in range(cols):
+            a, b, c, dd = P[j, i], P[j, i + 1], P[j + 1, i], P[j + 1, i + 1]
+            for tri in ((a, b, c), (b, dd, c)):
+                cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3.0
+                cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3.0
+                d.polygon([tuple(p) for p in tri], fill=color_at(cx, cy))
+    return _finish(np.asarray(img, dtype=np.float32), w, h, seed, 0.0, opts["grain"])
+
+
+def render_dot(w, h, base, accents, seed, opts):
+    L = luma(base) / 255.0
+    # Move dots TOWARD contrast: lighter on dark themes, darker on light themes,
+    # so the grid is visible either way.
+    sign = -1.0 if L > 0.5 else 1.0
+    amt = max(13.0, 16.0 * (1.0 - L) + 9.0)
+    s = max(16, w // 90)
+    r = s * 0.16
+    X, Y = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
+    dx = (X % s) - s / 2.0
+    dy = (Y % s) - s / 2.0
+    dist = np.sqrt(dx * dx + dy * dy)
+    mask = np.clip((r - dist) / 1.5, 0.0, 1.0)
+    sel = pick_accents(accents, seed, 1)
+    acc = hex2rgb(sel[0]) if sel else base
+    dot = np.clip(base + sign * amt, 0, 255) * 0.9 + acc * 0.1
+    img = np.ones((h, w, 3), dtype=np.float32) * base[None, None, :]
+    img = img * (1.0 - mask[..., None]) + dot[None, None, :] * mask[..., None]
+    return _finish(img, w, h, seed, opts["dither"], opts["grain"])
+
+
+def render_halftone(w, h, base, accents, seed, opts):
+    g = _smooth_field(w, h, seed, octaves=3)        # ink-density field
+    img = to_lin(np.ones((h, w, 3), dtype=np.float32) * base[None, None, :])
+    X, Y = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
+    sel = pick_accents(accents, seed, 2)
+    if not sel:
+        sel = ["#%02x%02x%02x" % tuple(np.clip(base + 40, 0, 255).astype(int))]
+    angles = [15, 75]
+    s = max(10, w // 120)
+    for k, a in enumerate(sel):
+        th = math.radians(angles[k % len(angles)])
+        u = X * math.cos(th) + Y * math.sin(th)
+        v = -X * math.sin(th) + Y * math.cos(th)
+        du = (u % s) - s / 2.0
+        dv = (v % s) - s / 2.0
+        dist = np.sqrt(du * du + dv * dv)
+        rad = s * 0.5 * np.clip(g * 1.1, 0.0, 1.0)  # bigger dots where denser
+        cov = np.clip((rad - dist) / 1.5, 0.0, 1.0) * 0.55
+        ac = to_lin(hex2rgb(a))
+        img = img * (1.0 - cov[..., None]) + ac[None, None, :] * cov[..., None]
+    return _finish(to_srgb(img), w, h, seed, 0.0, opts["grain"])
+
+
 STYLES = {
     "mesh": render_mesh,
     "contour": render_contour,
     "flat": render_flat,
+    "lowpoly": render_lowpoly,
+    "dot": render_dot,
+    "halftone": render_halftone,
 }
 
 
