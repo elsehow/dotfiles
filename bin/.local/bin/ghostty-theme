@@ -7,6 +7,7 @@
 #
 # Usage:
 #   ghostty-theme "<theme name>"    set the theme (quotes optional; multi-word ok)
+#   ghostty-theme --random          pick a random installed theme
 #   ghostty-theme --list            list available theme names
 #   ghostty-theme --current         show the currently configured theme
 #
@@ -22,16 +23,23 @@ themes() { "$GB" +list-themes --plain 2>/dev/null | sed -E 's/ \((resources|user
 
 case "${1:-}" in
   ""|-h|--help)
-    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   -l|--list)
     themes; exit 0 ;;
   --current)
     cur="$("$GB" +show-config 2>/dev/null | grep -m1 '^theme = ' | sed 's/^theme = //' || true)"
     [ -n "$cur" ] && echo "$cur" || echo "(no theme set)"
     exit 0 ;;
+  -r|--random)
+    # Pick a random installed theme. awk's srand()/rand() avoids depending on
+    # `sort -R`/`shuf` or bash 4 (macOS ships bash 3.2). Falls through to the
+    # same validate + apply path below.
+    theme="$(themes | awk 'BEGIN{srand()} {a[NR]=$0} END{if(NR)print a[int(rand()*NR)+1]}' || true)"
+    [ -z "$theme" ] && { echo "no themes found" >&2; exit 1; }
+    echo "🎲 random theme → $theme" ;;
+  *)
+    theme="$*" ;;   # join args so unquoted multi-word names work too
 esac
-
-theme="$*"   # join args so unquoted multi-word names work too
 
 # Validate (case-insensitive, whole-line) and normalize to the canonical casing.
 match="$(themes | grep -ixF "$theme" || true)"
