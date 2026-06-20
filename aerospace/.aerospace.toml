@@ -81,7 +81,7 @@ on-mode-changed = []
     inner.vertical =   25
     outer.left =       25
     outer.bottom =     25
-    outer.top =        56   # floating bar: gap_top(12) + bar height(32) + gap_top(12) → 12px gap above AND below the bar (symmetric vertical float)
+    outer.top =        86   # floating bar: gap_above(25) + bar height(36) + gap_below(25) — uniform 25px gap on every side of the bar, matching the other outer/inner gaps
     outer.right =      25
 
 # 'main' binding mode declaration
@@ -154,7 +154,7 @@ on-mode-changed = []
     cmd-7 = 'workspace 7'
     cmd-8 = 'workspace 8'
     cmd-9 = 'workspace 9'
-    cmd-backtick = 'workspace ꩜'
+    cmd-leftSquareBracket = 'workspace ꩜'
 
     # See: https://nikitabobko.github.io/AeroSpace/commands#move-node-to-workspace
     cmd-shift-1 = 'move-node-to-workspace mf'
@@ -166,7 +166,7 @@ on-mode-changed = []
     cmd-shift-7 = 'move-node-to-workspace 7'
     cmd-shift-8 = 'move-node-to-workspace 8'
     cmd-shift-9 = 'move-node-to-workspace 9'
-    cmd-shift-backtick = 'move-node-to-workspace ꩜'
+    cmd-shift-leftSquareBracket = 'move-node-to-workspace ꩜'
 
     # See: https://nikitabobko.github.io/AeroSpace/co`````mmands#workspace-back-and-forth
     cmd-tab = 'workspace-back-and-forth'

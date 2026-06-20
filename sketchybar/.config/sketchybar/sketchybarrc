@@ -28,8 +28,8 @@ if command -v borders >/dev/null 2>&1; then
   borders active_color=$BORDER_ACTIVE inactive_color=$BORDER_INACTIVE width=6 >/dev/null 2>&1 &
 fi
 
-FONT_LABEL="$GHOSTTY_FONT:Regular:17.0"
-FONT_ICON="$GHOSTTY_FONT:Bold:17.0"
+FONT_LABEL="$GHOSTTY_FONT:Regular:20.0"
+FONT_ICON="$GHOSTTY_FONT:Bold:20.0"
 
 # Workspace items, in keyboard order. ꩜ is an emoji workspace name.
 WORKSPACES=(mf xrisk relevantbench 4 5 6 7 8 9 "꩜")
@@ -42,13 +42,15 @@ LABELS="$CONFIG_DIR/workspace-labels.env"
 # ── Bar (floating + rounded, to match aerospace windows) ─────────────────────
 # The bar floats with rounded corners to match window rounding.
 #
-# Vertical float is symmetric: BAR_GAP_TOP above the bar == the gap below it.
+# The bar floats with a uniform gap on every side — above it, below it (down to the
+# window tops), and matching gaps.outer.*/inner.* — so every gap on the desktop is
+# the same 25px and the bar sits symmetrically in its float.
 # NOTE: keep `outer.top` in ~/.aerospace.toml equal to
-#   (BAR_GAP_TOP + BAR_HEIGHT + BAR_GAP_TOP)
-# so the gap below the bar equals the gap above it.
-BAR_HEIGHT=32
+#   (BAR_GAP_TOP + BAR_HEIGHT + BAR_GAP_BELOW)
+BAR_HEIGHT=36    # tall enough to seat the 20pt label with comfortable padding
 BAR_MARGIN=25    # side inset of the bar (match gaps.outer.left/right in ~/.aerospace.toml)
-BAR_GAP_TOP=12   # vertical float — same gap above the bar AND below it (window top)
+BAR_GAP_TOP=25   # gap above the bar (screen top → bar)
+BAR_GAP_BELOW=25 # gap below the bar (bar → window tops); = every other gap, for uniformity
 BAR_CORNER=12    # match your macOS window corner radius (tune to taste)
 
 sketchybar --bar \
@@ -71,8 +73,8 @@ sketchybar --default \
   label.color=$ACCENT_FG \
   padding_left=4 \
   padding_right=4 \
-  background.corner_radius=6 \
-  background.height=22
+  background.corner_radius=8 \
+  background.height=27
 
 # ── Workspaces (left) ────────────────────────────────────────────────────────
 # AeroSpace fires this event on every workspace change (wired in ~/.aerospace.toml).
@@ -113,7 +115,7 @@ if pmset -g batt 2>/dev/null | grep -q "InternalBattery"; then
   sketchybar --add item battery right \
     --set battery \
       update_freq=30 \
-      icon.font="Hack Nerd Font:Regular:15.0" \
+      icon.font="Hack Nerd Font:Regular:18.0" \
       icon.color=$ACCENT_FG \
       label.font="$FONT_LABEL" \
       label.color=$ACCENT_FG \
