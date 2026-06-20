@@ -10,12 +10,11 @@ Styles (--style):
   mesh     (default) soft inverse-distance gradient. Bright/dark/accent pools are
            pushed to the RIM and a center vignette keeps the middle calm; colors
            mix in linear-light (no muddy brown between complementary accents);
-           accents are desaturated toward the base. Reads as a matte wall.
-  contour  topographic iso-lines (a smooth value field sliced into bands) drawn in
-           an accent over the base. On-brand for a terminal rice; light themes
-           look like a cream contour map, dark themes like faint colored lines.
-  contour-multi  same iso-lines, but each elevation band a different accent —
-           a multicolor topo map.
+           accents (up to 3) are desaturated toward the base. Reads as a matte
+           wall with visible tint and light/dark drift toward the edges.
+  contour  topographic iso-lines (a smooth value field sliced into bands), each
+           elevation band a different accent — a multicolor topo map. On-brand
+           for a terminal rice.
   flat     the calmest: a single soft corner-to-corner directional gradient with a
            whisper of accent glow in one corner. Closest to a plain matte wall.
   lowpoly  flat-shaded triangle facets (jittered grid, no scipy). Facets organize
@@ -23,9 +22,8 @@ Styles (--style):
   dot      a fine, tightly-spaced dot grid a touch off the base (perfboard /
            graph-paper). Minimal; dots move toward contrast so light themes show.
   flow     thousands of particles streamed along a noise vector field into glowing
-           palette-tinted streamlines. The dynamic one — sinuous and organic.
-  flow-multi  flow, but particles are hued by their start position so the palette
-           flows in coherent multicolor bands across the canvas.
+           streamlines, hued by their start position so the palette flows in
+           coherent multicolor bands across the canvas. Sinuous and organic.
   tiedye   psychedelic full-spectrum spiral folded around a jittered center and
            warped into organic bleed. Loud, not calm — the one to reach for when
            you want a rice that screams. accents ignored (tie-dye is the rainbow).
@@ -52,7 +50,7 @@ glslViewer / Shadertoy, then port the math here so the pipeline stays headless.
 Usage:
   theme-texture --out PATH --size WxH --base "#rrggbb" \
                 --accents "#r1,#g2,#b4" [--seed N] \
-                [--style mesh|contour|contour-multi|flat|lowpoly|dot|flow|flow-multi|tiedye|ribbon] \
+                [--style mesh|contour|flat|lowpoly|dot|flow|tiedye|ribbon] \
                 [--blend 0.20] [--dither 2.0] [--grain 3.0] [--power 1.6]
 """
 import argparse
@@ -164,7 +162,7 @@ def render_mesh(w, h, base, accents, seed, opts):
     rng = np.random.default_rng(seed)
     L = luma(base) / 255.0
     # Dark base needs a bigger light/dark swing to read as a gradient at all.
-    lift = 40.0 * (1.0 - L) + 12.0
+    lift = 55.0 * (1.0 - L) + 14.0
     blend = opts["blend"]
     base_lin = to_lin(base)
 
@@ -179,7 +177,7 @@ def render_mesh(w, h, base, accents, seed, opts):
     pts = [np.array([0.5, 0.5], dtype=np.float32)]   # base anchor = calm center
     cols.append(to_lin(np.clip(base + lift, 0, 255)));       pts.append(rim())
     cols.append(to_lin(np.clip(base - lift * 0.7, 0, 255))); pts.append(rim())
-    for a in pick_accents(accents, seed, 2):         # at most 2, desaturated
+    for a in pick_accents(accents, seed, 3):         # at most 3, desaturated
         tint = np.clip(base * (1.0 - blend) + hex2rgb(a) * blend, 0, 255)
         cols.append(to_lin(tint));                           pts.append(rim())
     cols = np.array(cols, dtype=np.float32)
@@ -205,13 +203,13 @@ def render_mesh(w, h, base, accents, seed, opts):
     vx = (gx / asp - 0.5)
     vy = gy - 0.5
     rad = np.sqrt(vx * vx + vy * vy) / 0.5
-    calm = (np.clip(1.0 - rad, 0.0, 1.0) ** 2) * 0.45
+    calm = (np.clip(1.0 - rad, 0.0, 1.0) ** 2) * 0.32
     img = img * (1.0 - calm[..., None]) + base_lin[None, None, :] * calm[..., None]
 
     return _finish(to_srgb(img), w, h, seed, opts["dither"], opts["grain"])
 
 
-def _contour(w, h, base, accents, seed, opts, multi):
+def render_contour(w, h, base, accents, seed, opts):
     rng = np.random.default_rng(seed)
     xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
     ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
@@ -229,33 +227,19 @@ def _contour(w, h, base, accents, seed, opts, multi):
     fr = (f * n) % 1.0
     edge = np.minimum(fr, 1.0 - fr)
 
-    if multi:
-        # Each elevation band drawn in a different accent (cycling), plus a faint
-        # per-band base tint so the bands read even between the lines.
-        sel = pick_accents(accents, seed)
-        if not sel:
-            sel = ["#%02x%02x%02x" % tuple(np.clip(base + 40, 0, 255).astype(int))]
-        pal = np.array([hex2rgb(a) for a in sel], dtype=np.float32)
-        bi = np.clip((f * n).astype(np.int64), 0, n - 1)
-        linecol = pal[bi % len(pal)]                       # h x w x 3
-        mask = np.clip(1.0 - edge / 0.04, 0.0, 1.0) * 0.55
-        tint = 0.06
-        band = base_img * (1.0 - tint) + linecol * tint
-        out = band * (1.0 - mask[..., None]) + linecol * mask[..., None]
-    else:
-        sel = pick_accents(accents, seed, 1)
-        line = hex2rgb(sel[0]) if sel else np.clip(base + 40, 0, 255)
-        mask = np.clip(1.0 - edge / 0.04, 0.0, 1.0) * 0.5   # faint lines
-        out = base_img * (1.0 - mask[..., None]) + line[None, None, :] * mask[..., None]
+    # Each elevation band drawn in a different accent (cycling), plus a faint
+    # per-band base tint so the bands read even between the lines.
+    sel = pick_accents(accents, seed)
+    if not sel:
+        sel = ["#%02x%02x%02x" % tuple(np.clip(base + 40, 0, 255).astype(int))]
+    pal = np.array([hex2rgb(a) for a in sel], dtype=np.float32)
+    bi = np.clip((f * n).astype(np.int64), 0, n - 1)
+    linecol = pal[bi % len(pal)]                       # h x w x 3
+    mask = np.clip(1.0 - edge / 0.04, 0.0, 1.0) * 0.55
+    tint = 0.06
+    band = base_img * (1.0 - tint) + linecol * tint
+    out = band * (1.0 - mask[..., None]) + linecol * mask[..., None]
     return _finish(out, w, h, seed, 0.0, opts["grain"])
-
-
-def render_contour(w, h, base, accents, seed, opts):
-    return _contour(w, h, base, accents, seed, opts, multi=False)
-
-
-def render_contour_multi(w, h, base, accents, seed, opts):
-    return _contour(w, h, base, accents, seed, opts, multi=True)
 
 
 def render_flat(w, h, base, accents, seed, opts):
@@ -314,14 +298,13 @@ def _cmap_sample(pal, t):
     return to_srgb(lin[i0] * (1.0 - fr) + lin[i0 + 1] * fr)
 
 
-def _flow(w, h, base, accents, seed, opts, multi):
+def render_flow(w, h, base, accents, seed, opts):
     """Flow field: thousands of particles streamed along a noise vector field,
-    accumulated into an ink buffer and composited over the base.
-      single — each particle a random accent pulled toward base (calm glow).
-      multi  — particles hued by a smooth field of their start position, accents
-               kept saturated → coherent multicolor streams across the canvas."""
+    accumulated into an ink buffer and composited over the base. Particles are
+    hued by a smooth field of their start position, accents kept saturated →
+    coherent multicolor streams across the canvas."""
     rng = np.random.default_rng(seed)
-    n = 4600 if multi else 4200            # particles
+    n = 4600                               # particles
     steps = 320                            # integration steps per particle
     step_px = max(1.5, w / 900.0)
 
@@ -346,23 +329,16 @@ def _flow(w, h, base, accents, seed, opts, multi):
     if not sel:
         sel = ["#%02x%02x%02x" % tuple(np.clip(base + 50, 0, 255).astype(int))]
 
-    if multi:
-        # Hue by a smooth field of the START position → coherent color bands.
-        pal = np.array([hex2rgb(a) for a in sel], dtype=np.float32) * 0.92 + base * 0.08
-        nx0, ny0 = px / w, py / h
-        cp = rng.random(2) * 6.28318
-        tg = (np.sin(1.7 * nx0 * math.pi + 1.1 * ny0 * math.pi + cp[0])
-              + 0.6 * np.sin(2.3 * ny0 * math.pi - 0.9 * nx0 * math.pi + cp[1]))
-        tg = (tg - tg.min()) / (np.ptp(tg) + 1e-9)
-        pcol = _cmap_sample(pal, tg)
-        alpha = opts["flow_alpha"] * 1.25
-        comp_max = 0.82
-    else:
-        # Each particle a random accent, pulled toward base so streaks glow.
-        acc_rgb = np.array([hex2rgb(a) for a in sel], dtype=np.float32) * 0.7 + base * 0.3
-        pcol = acc_rgb[rng.integers(0, len(acc_rgb), n)]
-        alpha = opts["flow_alpha"]
-        comp_max = 0.75
+    # Hue by a smooth field of the START position → coherent color bands.
+    pal = np.array([hex2rgb(a) for a in sel], dtype=np.float32) * 0.92 + base * 0.08
+    nx0, ny0 = px / w, py / h
+    cp = rng.random(2) * 6.28318
+    tg = (np.sin(1.7 * nx0 * math.pi + 1.1 * ny0 * math.pi + cp[0])
+          + 0.6 * np.sin(2.3 * ny0 * math.pi - 0.9 * nx0 * math.pi + cp[1]))
+    tg = (tg - tg.min()) / (np.ptp(tg) + 1e-9)
+    pcol = _cmap_sample(pal, tg)
+    alpha = opts["flow_alpha"] * 1.25
+    comp_max = 0.82
 
     ink = np.zeros((h, w), dtype=np.float32)
     colacc = np.zeros((h, w, 3), dtype=np.float32)
@@ -390,14 +366,6 @@ def _flow(w, h, base, accents, seed, opts, multi):
     comp = np.clip(np.clip(ink, 0, 1), 0, comp_max)[..., None]
     out = to_srgb(base_lin * (1.0 - comp) + to_lin(streak) * comp)
     return _finish(out, w, h, seed, 2.0, opts["grain"])
-
-
-def render_flow(w, h, base, accents, seed, opts):
-    return _flow(w, h, base, accents, seed, opts, multi=False)
-
-
-def render_flow_multi(w, h, base, accents, seed, opts):
-    return _flow(w, h, base, accents, seed, opts, multi=True)
 
 
 def _smooth_field(w, h, seed, octaves=4):
@@ -578,12 +546,10 @@ STYLES = {
     "tiedye": render_tiedye,
     "ribbon": render_ribbon,
     "contour": render_contour,
-    "contour-multi": render_contour_multi,
     "flat": render_flat,
     "lowpoly": render_lowpoly,
     "dot": render_dot,
     "flow": render_flow,
-    "flow-multi": render_flow_multi,
 }
 
 
@@ -597,7 +563,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--style", default="mesh", choices=sorted(STYLES),
                     help="which procedural look to render")
-    ap.add_argument("--blend", type=float, default=0.20,
+    ap.add_argument("--blend", type=float, default=0.30,
                     help="mesh: 0..1 how far accent points move from base")
     ap.add_argument("--dither", type=float, default=2.0,
                     help="ordered-dither amplitude in 0..255 levels (0 = off)")
