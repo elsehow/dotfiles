@@ -9,7 +9,7 @@
 #     stdlib, works on any machine.
 #   • TEXTURE (--texture) — a subtle procedural wallpaper rendered from the
 #     theme's full palette via theme-texture, in one of several STYLES
-#     (mesh | contour | flat | lowpoly | dot | flow | tiedye | ribbon —
+#     (mesh | contour | flat | flow | tiedye | ribbon —
 #      the last two loud/psychedelic, the rest calm).
 #     Needs numpy + Pillow; falls back to SOLID if they're missing.
 #
@@ -26,9 +26,10 @@
 # to make it use a solid color instead.
 #
 # Env:
-#   THEME_WALLPAPER_SIZE   output WxH (default 7680x3240)
-#   THEME_WALLPAPER_STYLE  texture style: mesh | contour | flat | lowpoly |
-#                          dot | flow | tiedye | ribbon (default mesh)
+#   THEME_WALLPAPER_SIZE   output WxH (default 3840x2160 — 4K; ample behind tiled
+#                          windows. Bump to 7680x3240 for 8K if you ever need it.)
+#   THEME_WALLPAPER_STYLE  texture style: mesh | contour | flat | flow | tiedye |
+#                          ribbon (default mesh)
 #   THEME_WALLPAPER_HARMONY mono (default) | complement | split | triad |
 #                          analogous — rotate the wallpaper around the color wheel
 #                          relative to the theme hue, so the desktop complements
@@ -42,7 +43,7 @@
 set -euo pipefail
 
 GB=/Applications/Ghostty.app/Contents/MacOS/ghostty
-SIZE="${THEME_WALLPAPER_SIZE:-7680x3240}"
+SIZE="${THEME_WALLPAPER_SIZE:-3840x2160}"
 CACHE="$HOME/.cache/theme-wallpaper"
 # Cache is keyed by content (theme|bg|accents|style|harmony|version|size) and
 # never overwrites, so it grows with every new combination AND orphans every
@@ -190,7 +191,7 @@ STYLE="${THEME_WALLPAPER_STYLE:-mesh}"
 HARMONY="${THEME_WALLPAPER_HARMONY:-mono}"
 
 case "${1:-}" in
-  -h|--help) sed -n '2,41p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   --texture) [ -n "${2:-}" ] && STYLE="$2"; set_texture ;;
   --solid)   set_solid ;;
   *)         set_solid "${1:-}" ;;

@@ -11,8 +11,8 @@
 #   set-theme --random [light|dark] pick a random theme (optionally only light/dark)
 #   set-theme --opacity <0..1>      terminal bg opacity (default 1; with a theme,
 #                                   or alone to re-apply the current theme)
-#   set-theme --style <name>        wallpaper style: mesh|contour|flat|lowpoly|
-#                                   dot|flow|tiedye|ribbon
+#   set-theme --style <name>        wallpaper style: mesh|contour|flat|flow|
+#                                   tiedye|ribbon
 #   set-theme --harmony <scheme>    rotate the wallpaper around the color wheel
 #                                   relative to the theme hue: mono (default) |
 #                                   complement | split | triad | analogous
@@ -106,9 +106,9 @@ set -- ${_args[@]+"${_args[@]}"}
 # bad value mid-render and the wallpaper would silently fall back to solid).
 if [ -n "$STYLE" ]; then
   case "$STYLE" in
-    mesh|contour|flat|lowpoly|dot|flow|tiedye|ribbon) ;;
+    mesh|contour|flat|flow|tiedye|ribbon) ;;
     *) echo "unknown style: '$STYLE'" >&2
-       echo "usage: set-theme --style mesh|contour|flat|lowpoly|dot|flow|tiedye|ribbon" >&2
+       echo "usage: set-theme --style mesh|contour|flat|flow|tiedye|ribbon" >&2
        exit 1 ;;
   esac
 fi
