@@ -33,7 +33,7 @@ brew bundle --file "$DOTFILES/Brewfile"
 echo "==> stow (symlinking configs into \$HOME)"
 mkdir -p "$HOME/.config" "$HOME/.local/bin" \
          "$HOME/Library/Application Support/com.mitchellh.ghostty"
-stow --target="$HOME" --restow aerospace sketchybar bin ghostty
+stow --target="$HOME" --restow aerospace sketchybar bin ghostty zsh
 
 # ── 2b. Optional: texture-wallpaper deps ─────────────────────────────────────
 # `theme-wallpaper --texture` renders a procedural wallpaper with numpy + Pillow.

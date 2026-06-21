@@ -51,7 +51,12 @@ keybind = performable:cmd+l=goto_split:right
 font-family = "Inconsolata"
 font-size = 23
 
-background-opacity = 1
+# Always use a block cursor (apps can still override via DECSCUSR)
+cursor-style = block
+# Stop Ghostty's shell integration from forcing a bar cursor at the prompt
+shell-integration-features = no-cursor,no-sudo,title,no-ssh-env,no-ssh-terminfo,path
+
+background-opacity = 1.0
 background-blur-radius = 100
 macos-titlebar-style = "hidden"
 # window-padding-x is 20 (a touch tighter). Note: the sketchybar left text inset is
@@ -61,8 +66,8 @@ macos-titlebar-style = "hidden"
 # the left and shoves the extra space to the right edge.
 window-padding-balance = false
 window-padding-x = 20
-window-padding-y = 20
+window-padding-y = 10
 mouse-hide-while-typing = true
 window-decoration = true
 
-theme = Melange Light
+theme = GitHub Light Default
