@@ -21,8 +21,14 @@ FALLBACK_FONT="Inconsolata"   # installed monospace; closest to the intended loo
 # Ghostty and sketchybar implement blur on different scales and composite
 # opacity over different backdrops, so identical numbers do NOT look identical.
 # To match the terminal, sketchybar usually needs LOWER opacity + HIGHER blur
-# than Ghostty's literal values. Leave a value empty ("") to use Ghostty's.
-OPACITY_OVERRIDE="1.0"    # bar white opacity, 0..1   (Ghostty's is 0.6)
+# than Ghostty's literal values.
+#
+# Opacity now TRACKS Ghostty's background-opacity (so `set-theme --opacity`
+# moves the bar too) instead of being pinned. OPACITY_BOOST shapes the match:
+# it scales only the translucent gap below 1.0, so a fully-opaque terminal keeps
+# a solid bar, while a translucent one gets a bar that reads a touch MORE
+# translucent than Ghostty (>1 = lower than Ghostty; 1 = exact; "" also = exact).
+OPACITY_BOOST="1.25"      # bar dips below Ghostty when translucent, solid at 1.0
 BLUR_OVERRIDE="150"       # sketchybar blur radius     (Ghostty's is 100)
 
 cfg="$("$GHOSTTY_BIN" +show-config 2>/dev/null || true)"
@@ -63,8 +69,11 @@ PY
 hexrgb() { echo "${1#\#}"; }
 alpha()  { awk -v o="$1" 'BEGIN{a=int(o*255+0.5); if(a<0)a=0; if(a>255)a=255; printf "%02x",a}'; }
 
-# Apply visual-match overrides over the Ghostty-derived values.
-[ -n "$OPACITY_OVERRIDE" ] && opacity="$OPACITY_OVERRIDE"
+# Apply visual-match overrides over the Ghostty-derived values. The bar tracks
+# Ghostty's opacity; OPACITY_BOOST deepens only the translucent gap below 1.0
+# (boost 1 or empty → bar == Ghostty exactly; opacity 1.0 → bar stays solid).
+opacity="$(awk -v o="$opacity" -v k="${OPACITY_BOOST:-1}" \
+  'BEGIN{ v = 1 - (1 - o) * k; if (v < 0) v = 0; if (v > 1) v = 1; printf "%.4f", v }')"
 
 BG_HEX="$(hexrgb "$bg")"; FG_HEX="$(hexrgb "$fg")"; A="$(alpha "$opacity")"
 # The "agent needs me" dot uses the theme's red (ANSI palette color 1), so it
