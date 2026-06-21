@@ -139,6 +139,16 @@ sketchybar --add item clock right \
     label.padding_right=8 \
     script="$PLUGIN_DIR/clock.sh"
 
+# ── Right side: outside temp (wttr.in) ───────────────────────────────────────
+sketchybar --add item weather right \
+  --set weather \
+    update_freq=900 \
+    icon.drawing=off \
+    label.font="$FONT_LABEL" \
+    label.color=$ACCENT_FG \
+    label.padding_right=16 \
+    script="$PLUGIN_DIR/weather.sh"
+
 # ── Right side: battery (LAPTOPS ONLY) ───────────────────────────────────────
 # Desktops (Mac Studio, Mac mini) have no battery, so this self-adapts: the item
 # is only added on machines that report an internal battery. One config, every
