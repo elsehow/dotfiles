@@ -9,7 +9,7 @@
 #     stdlib, works on any machine.
 #   • TEXTURE (--texture) — a subtle procedural wallpaper rendered from the
 #     theme's full palette via theme-texture, in one of several STYLES
-#     (mesh | contour | flat | flow | tiedye | ribbon —
+#     (mesh | flat | flow | tiedye | ribbon —
 #      the last two loud/psychedelic, the rest calm).
 #     Needs numpy + Pillow; falls back to SOLID if they're missing.
 #
@@ -28,8 +28,8 @@
 # Env:
 #   THEME_WALLPAPER_SIZE   output WxH (default 3840x2160 — 4K; ample behind tiled
 #                          windows. Bump to 7680x3240 for 8K if you ever need it.)
-#   THEME_WALLPAPER_STYLE  texture style: mesh | contour | flat | flow | tiedye |
-#                          ribbon (default mesh)
+#   THEME_WALLPAPER_STYLE  texture style: mesh | flat | flow | tiedye | ribbon
+#                          (default mesh)
 #   THEME_WALLPAPER_HARMONY mono (default) | complement | split | triad |
 #                          analogous — rotate the wallpaper around the color wheel
 #                          relative to the theme hue, so the desktop complements

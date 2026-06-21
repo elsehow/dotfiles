@@ -12,9 +12,6 @@ Styles (--style):
            mix in linear-light (no muddy brown between complementary accents);
            accents (up to 3) are desaturated toward the base. Reads as a matte
            wall with visible tint and light/dark drift toward the edges.
-  contour  topographic iso-lines (a smooth value field sliced into bands), each
-           elevation band a different accent — a multicolor topo map. On-brand
-           for a terminal rice.
   flat     the calmest: a single soft corner-to-corner directional gradient with a
            whisper of accent glow in one corner. Closest to a plain matte wall.
   flow     thousands of particles streamed along a noise vector field into glowing
@@ -36,7 +33,7 @@ RAW theme background as --base. Dark themes darken hard into a recessed gutter;
 light themes barely darken, so "paper" backgrounds stay warm and papery.
 
 Accent choice is shuffled per-seed (pick_accents), so styles don't always grab
-the same palette slot (e.g. contour isn't perpetually red) — but stays stable
+the same palette slot (e.g. flow isn't perpetually red) — but stays stable
 for a given theme, since the caller seeds from the theme name.
 
 Swap or add a style by writing a new render_<name>(w, h, base, accents, seed,
@@ -46,7 +43,7 @@ glslViewer / Shadertoy, then port the math here so the pipeline stays headless.
 Usage:
   theme-texture --out PATH --size WxH --base "#rrggbb" \
                 --accents "#r1,#g2,#b4" [--seed N] \
-                [--style mesh|contour|flat|flow|tiedye|ribbon] \
+                [--style mesh|flat|flow|tiedye|ribbon] \
                 [--harmony mono|complement|split|triad|analogous] \
                 [--blend 0.20] [--dither 2.0] [--grain 3.0] [--power 1.6]
 
@@ -253,39 +250,6 @@ def render_mesh(w, h, base, accents, seed, opts):
     img = img * (1.0 - calm[..., None]) + base_lin[None, None, :] * calm[..., None]
 
     return _finish(to_srgb(img), w, h, seed, opts["dither"], opts["grain"])
-
-
-def render_contour(w, h, base, accents, seed, opts):
-    rng = np.random.default_rng(seed)
-    xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
-    ys = np.linspace(0.0, 1.0, h, dtype=np.float32)
-    gx, gy = np.meshgrid(xs, ys)
-    # Cheap smooth field: a sum of a few low-frequency sine waves.
-    f = np.zeros((h, w), dtype=np.float32)
-    for _ in range(4):
-        ax, ay = rng.normal(0, 3, 2)
-        ph = rng.random() * 6.28318
-        f += np.sin(ax * gx * math.pi + ay * gy * math.pi + ph)
-    f = (f - f.min()) / (np.ptp(f) + 1e-9)
-
-    n = 14                                   # number of iso-bands
-    base_img = np.ones((h, w, 3), dtype=np.float32) * base[None, None, :]
-    fr = (f * n) % 1.0
-    edge = np.minimum(fr, 1.0 - fr)
-
-    # Each elevation band drawn in a different accent (cycling), plus a faint
-    # per-band base tint so the bands read even between the lines.
-    sel = pick_accents(accents, seed)
-    if not sel:
-        sel = ["#%02x%02x%02x" % tuple(np.clip(base + 40, 0, 255).astype(int))]
-    pal = np.array([hex2rgb(a) for a in sel], dtype=np.float32)
-    bi = np.clip((f * n).astype(np.int64), 0, n - 1)
-    linecol = pal[bi % len(pal)]                       # h x w x 3
-    mask = np.clip(1.0 - edge / 0.04, 0.0, 1.0) * 0.55
-    tint = 0.06
-    band = base_img * (1.0 - tint) + linecol * tint
-    out = band * (1.0 - mask[..., None]) + linecol * mask[..., None]
-    return _finish(out, w, h, seed, 0.0, opts["grain"])
 
 
 def render_flat(w, h, base, accents, seed, opts):
@@ -511,7 +475,6 @@ STYLES = {
     "mesh": render_mesh,
     "tiedye": render_tiedye,
     "ribbon": render_ribbon,
-    "contour": render_contour,
     "flat": render_flat,
     "flow": render_flow,
 }
