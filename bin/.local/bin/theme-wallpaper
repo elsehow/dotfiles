@@ -34,12 +34,21 @@
 #                          relative to the theme hue, so the desktop complements
 #                          the terminal instead of just matching it. Works in both
 #                          solid and texture mode.
+#   THEME_WALLPAPER_CACHE_CAP cache size budget in BYTES (default 400 MiB). After
+#                          each render the cache is pruned oldest-first until under
+#                          this, so renders don't accumulate unbounded. Set to 0 to
+#                          disable pruning.
 #
 set -euo pipefail
 
 GB=/Applications/Ghostty.app/Contents/MacOS/ghostty
 SIZE="${THEME_WALLPAPER_SIZE:-7680x3240}"
 CACHE="$HOME/.cache/theme-wallpaper"
+# Cache is keyed by content (theme|bg|accents|style|harmony|version|size) and
+# never overwrites, so it grows with every new combination AND orphans every
+# render from a past schema version. 8K textures run 5–27 MB each, so this leaks
+# fast. Bound it: prune oldest-first after each render. Default 400 MiB.
+CACHE_CAP="${THEME_WALLPAPER_CACHE_CAP:-419430400}"
 
 # Capture the resolved config once (one ghostty call, no SIGPIPE under pipefail).
 cfg="$("$GB" +show-config 2>/dev/null || true)"
@@ -81,6 +90,37 @@ set_wallpaper() { # path
   osascript -e "tell application \"System Events\" to set picture of every desktop to \"$1\"" >/dev/null 2>&1 || true
 }
 
+# Bound the cache: if total bytes exceed CACHE_CAP, delete files oldest-first
+# (by mtime) until under it. Never deletes $1 (the render we just set as the live
+# wallpaper), regardless of its age. CACHE_CAP=0 disables. Pure python3 stdlib.
+prune_cache() { # keep_path
+  [ "${CACHE_CAP:-0}" -gt 0 ] || return 0
+  python3 - "$CACHE" "$CACHE_CAP" "${1:-}" <<'PY'
+import os, sys
+cache, cap, keep = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+keep = os.path.realpath(keep) if keep else ""
+try:
+    files = [(s.st_mtime, s.st_size, p)
+             for n in os.listdir(cache)
+             for p in [os.path.join(cache, n)]
+             if os.path.isfile(p) for s in [os.stat(p)]]
+except FileNotFoundError:
+    sys.exit(0)
+total = sum(sz for _, sz, _ in files)
+if total <= cap:
+    sys.exit(0)
+running = 0
+for _, sz, p in sorted(files, reverse=True):   # newest first; keep newest
+    if os.path.realpath(p) == keep:            # always retain the live wallpaper
+        running += sz
+        continue
+    running += sz
+    if running > cap:
+        try: os.remove(p)
+        except OSError: pass
+PY
+}
+
 solid_png() { # hex path  — pure-stdlib solid PNG (no numpy/PIL needed)
   python3 - "$1" "$2" <<'PY'
 import sys, zlib, struct
@@ -111,6 +151,7 @@ set_solid() {
   mkdir -p "$CACHE"
   solid_png "$hex" "$out"
   set_wallpaper "$out"
+  prune_cache "$out"
   echo "✔ wallpaper → #${hex}   (theme bg ${bg})"
 }
 
@@ -138,6 +179,7 @@ set_texture() {
     fi
   fi
   set_wallpaper "$out"
+  prune_cache "$out"
   hsuf=""; [ "$HARMONY" != mono ] && hsuf=",$HARMONY"
   echo "✔ texture(${STYLE}${hsuf}) → bg ${bg}, accents ${accents}   (theme ${name})"
 }
@@ -148,7 +190,7 @@ STYLE="${THEME_WALLPAPER_STYLE:-mesh}"
 HARMONY="${THEME_WALLPAPER_HARMONY:-mono}"
 
 case "${1:-}" in
-  -h|--help) sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,41p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   --texture) [ -n "${2:-}" ] && STYLE="$2"; set_texture ;;
   --solid)   set_solid ;;
   *)         set_solid "${1:-}" ;;
