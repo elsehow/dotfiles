@@ -13,8 +13,9 @@
 #                                   or alone to re-apply the current theme)
 #   set-theme --style <name>        wallpaper style: mesh|contour|flat|lowpoly|
 #                                   dot|flow|tiedye|ribbon
-#   set-theme --invert / --no-invert  render the wallpaper at the opposite
-#                                   lightness of the theme (contrast) / follow it
+#   set-theme --harmony <scheme>    rotate the wallpaper around the color wheel
+#                                   relative to the theme hue: mono (default) |
+#                                   complement | split | triad | analogous
 #   set-theme --list                list available theme names
 #   set-theme --current             show the currently configured theme
 #
@@ -85,32 +86,49 @@ set_cfg() {
   rm -f "$tmp"
 }
 
-# ── Pull --opacity / --style / --invert out of the args; rest is the theme spec. ──
-OPACITY=1.0; OPACITY_SET=0; STYLE=""; INVERT=""; INVERT_SET=0
+# ── Pull --opacity / --style / --harmony out of the args; rest is the theme spec. ──
+OPACITY=1.0; OPACITY_SET=0; STYLE=""; HARMONY=""; HARMONY_SET=0
 _args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --opacity)   OPACITY="${2:?--opacity needs a value 0..1}"; OPACITY_SET=1; shift 2 ;;
     --opacity=*) OPACITY="${1#--opacity=}"; OPACITY_SET=1; shift ;;
-    --style)     STYLE="${2:?--style needs mesh|contour|flat}"; shift 2 ;;
+    --style)     STYLE="${2:?--style needs a wallpaper style}"; shift 2 ;;
     --style=*)   STYLE="${1#--style=}"; shift ;;
-    --invert)    INVERT=1; INVERT_SET=1; shift ;;        # contrast wallpaper
-    --no-invert) INVERT="";  INVERT_SET=1; shift ;;      # follow the theme
+    --harmony)   HARMONY="${2:?--harmony needs mono|complement|split|triad|analogous}"; HARMONY_SET=1; shift 2 ;;
+    --harmony=*) HARMONY="${1#--harmony=}"; HARMONY_SET=1; shift ;;
     *)           _args+=("$1"); shift ;;
   esac
 done
 set -- ${_args[@]+"${_args[@]}"}
 
-# `set-theme --opacity V` / `--style S` / `--invert` with no theme → re-apply the
-# current theme (at the new opacity / wallpaper style / contrast mode).
-if [ $# -eq 0 ] && { [ "$OPACITY_SET" = 1 ] || [ -n "$STYLE" ] || [ "$INVERT_SET" = 1 ]; }; then
+# Validate --style / --harmony up front (theme-texture would otherwise reject a
+# bad value mid-render and the wallpaper would silently fall back to solid).
+if [ -n "$STYLE" ]; then
+  case "$STYLE" in
+    mesh|contour|flat|lowpoly|dot|flow|tiedye|ribbon) ;;
+    *) echo "unknown style: '$STYLE'" >&2
+       echo "usage: set-theme --style mesh|contour|flat|lowpoly|dot|flow|tiedye|ribbon" >&2
+       exit 1 ;;
+  esac
+fi
+if [ "$HARMONY_SET" = 1 ]; then
+  case "$HARMONY" in
+    mono|complement|split|triad|analogous) ;;
+    *) echo "usage: set-theme --harmony mono|complement|split|triad|analogous" >&2; exit 1 ;;
+  esac
+fi
+
+# `set-theme --opacity V` / `--style S` / `--harmony H` with no theme → re-apply
+# the current theme (at the new opacity / wallpaper style / harmony).
+if [ $# -eq 0 ] && { [ "$OPACITY_SET" = 1 ] || [ -n "$STYLE" ] || [ "$HARMONY_SET" = 1 ]; }; then
   cur="$("$GB" +show-config 2>/dev/null | grep -m1 '^theme = ' | sed 's/^theme = //' || true)"
   [ -n "$cur" ] && set -- "$cur"
 fi
 
 case "${1:-}" in
   ""|-h|--help)
-    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   -l|--list)
     themes; exit 0 ;;
   --current)
@@ -133,10 +151,12 @@ case "${1:-}" in
 esac
 
 # Validate (case-insensitive, whole-line) and normalize to the canonical casing.
-match="$(themes | grep -ixF "$theme" || true)"
+# `--` so an unknown flag-like arg (e.g. a removed --invert from muscle memory)
+# is treated as a theme name, not parsed as a grep option.
+match="$(themes | grep -ixF -- "$theme" || true)"
 if [ -z "$match" ]; then
   echo "unknown theme: '$theme'" >&2
-  near="$(themes | grep -iF "$theme" | head -10 || true)"
+  near="$(themes | grep -iF -- "$theme" | head -10 || true)"
   [ -n "$near" ] && { echo "did you mean:" >&2; echo "$near" | sed 's/^/  /' >&2; }
   echo "(run: set-theme --list)" >&2
   exit 1
@@ -169,9 +189,9 @@ echo "✔ sketchybar re-synced · ${note}"
 # the procedural texture; set THEME_WALLPAPER_MODE=--solid for a flat color instead.
 # (--texture falls back to solid on its own if numpy/Pillow aren't present.)
 if command -v theme-wallpaper >/dev/null 2>&1; then
-  # --invert/--no-invert override the env; absent either, inherit the env default.
-  [ "$INVERT_SET" = 1 ] && wp_invert="$INVERT" || wp_invert="${THEME_WALLPAPER_INVERT:-}"
+  # --harmony overrides the env; absent it, inherit the env default (mono).
+  [ "$HARMONY_SET" = 1 ] && wp_harmony="$HARMONY" || wp_harmony="${THEME_WALLPAPER_HARMONY:-mono}"
   THEME_WALLPAPER_STYLE="${STYLE:-${THEME_WALLPAPER_STYLE:-mesh}}" \
-  THEME_WALLPAPER_INVERT="$wp_invert" \
+  THEME_WALLPAPER_HARMONY="$wp_harmony" \
     theme-wallpaper "${THEME_WALLPAPER_MODE:---texture}" >/dev/null 2>&1 || true
 fi

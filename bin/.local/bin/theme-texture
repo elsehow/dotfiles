@@ -51,12 +51,17 @@ Usage:
   theme-texture --out PATH --size WxH --base "#rrggbb" \
                 --accents "#r1,#g2,#b4" [--seed N] \
                 [--style mesh|contour|flat|lowpoly|dot|flow|tiedye|ribbon] \
-                [--invert] \
+                [--harmony mono|complement|split|triad|analogous] \
                 [--blend 0.20] [--dither 2.0] [--grain 3.0] [--power 1.6]
 
---invert flips the base to the opposite lightness (hue kept) so a dark theme
-yields a light wallpaper and vice versa — contrast behind tiled windows. It
-acts on the base only, so it works for every theme and every style at once.
+--harmony rotates the wallpaper AROUND the color wheel relative to the theme
+background hue, so the desktop *relates* to the terminal by a color scheme
+instead of just matching it. mono (default) keeps the in-hue look; complement
+rotates the field 180° (blue terminal → amber desktop); split/triad/analogous
+are the milder schemes. Unlike the calm in-hue path, harmony lifts the base
+saturation so the rotated hue actually reads, and replaces the theme's own
+accents with ones generated at the scheme's angles (anchored on the theme hue,
+so offset 0 — the terminal's own hue — stays in the mix as a tie-back).
 """
 import argparse
 import colorsys
@@ -134,21 +139,43 @@ def working_base(raw_bg):
     return c * k
 
 
-def flip_luma(raw_bg):
-    """Flip a theme bg to the OPPOSITE lightness, hue preserved → a contrast
-    wallpaper for any theme (dark theme → pale field, light theme → deep field).
-    Theme-agnostic: keys only off luminance. Every style is luminance-aware off
-    the resulting base, so flipping here inverts all styles, not just mesh. The
-    hue is kept but sat is capped low so the field stays calm behind windows."""
-    c = hex2rgb(raw_bg)
-    H, S, _ = colorsys.rgb_to_hsv(*(c / 255.0))
-    # Asymmetric targets: light→dark lands at a normal dark-theme value (~0.26),
-    # NOT near-black — working_base darkens it further and the center vignette
-    # pulls toward it, so a lower target reads as a black screen. dark→light can
-    # sit high (0.90) since working_base barely touches light bases.
-    V2 = 0.90 if luma(c) / 255.0 < 0.5 else 0.26
-    r, g, b = colorsys.hsv_to_rgb(H, min(S, 0.10), V2)
+# Color-harmony schemes, anchored on the theme background hue. Each is
+# (base_hue_offset_deg, [accent_offset_deg, ...]) where 0° == the theme's own
+# hue. complement flips the field to the opposite of the terminal; the milder
+# schemes shift it less. Offset 0 is kept among the accents as a tie-back to the
+# terminal so the wallpaper still references the theme it came from.
+HARMONY = {
+    "complement": (180, [0, 180]),
+    "split":      (180, [0, 150, 210]),
+    "triad":      (120, [0, 120, 240]),
+    "analogous":  (30,  [0, 30, 60]),
+}
+
+
+def _hsv_hex(h, s, v):
+    r, g, b = colorsys.hsv_to_rgb(h % 1.0, max(0.0, min(1.0, s)), v)
     return "#%02x%02x%02x" % (round(r * 255), round(g * 255), round(b * 255))
+
+
+def harmonize_base(raw_bg, mode, sat_floor=0.30):
+    """Rotate the raw theme bg hue by the scheme's base offset, lifting
+    saturation to sat_floor so the rotated hue survives the working_base darken
+    (a near-grey bg rotated 180° is still near-grey, so the complement wouldn't
+    read without this). Value is preserved → dark themes stay dark."""
+    if mode not in HARMONY:
+        return raw_bg
+    H, S, V = colorsys.rgb_to_hsv(*(hex2rgb(raw_bg) / 255.0))
+    return _hsv_hex(H + HARMONY[mode][0] / 360.0, max(S, sat_floor), V)
+
+
+def harmony_accents(raw_bg, mode):
+    """Generate vivid accents at the scheme's hue angles (relative to the theme
+    bg hue), replacing the theme's own palette. Kept saturated (the calm styles
+    desaturate toward the base themselves), mid value so they read on any base."""
+    if mode not in HARMONY:
+        return None
+    H = colorsys.rgb_to_hsv(*(hex2rgb(raw_bg) / 255.0))[0]
+    return [_hsv_hex(H + off / 360.0, 0.65, 0.80) for off in HARMONY[mode][1]]
 
 
 def pick_accents(accents, seed, n=None):
@@ -596,14 +623,20 @@ def main():
                     help="mesh: inverse-distance falloff (higher = sharper blobs)")
     ap.add_argument("--flow-alpha", type=float, default=0.5,
                     help="flow: streak opacity (higher = denser/brighter streams)")
-    ap.add_argument("--invert", action="store_true",
-                    help="render at the OPPOSITE lightness of the theme (dark "
-                         "theme → light wallpaper) for contrast behind windows")
+    ap.add_argument("--harmony", default="mono",
+                    choices=["mono"] + sorted(HARMONY),
+                    help="rotate the field around the color wheel relative to the "
+                         "theme hue (mono = in-hue, the default)")
     a = ap.parse_args()
 
     w, h = (int(x) for x in a.size.lower().split("x"))
     accents = [c for c in a.accents.split(",") if c.strip()]
-    raw = flip_luma(a.base) if a.invert else a.base
+    # Harmony rotates the field's hue off the theme; mono leaves it in-hue. Done
+    # on the RAW bg, before the luminance-aware darken below.
+    raw = a.base
+    if a.harmony != "mono":
+        raw = harmonize_base(a.base, a.harmony)
+        accents = harmony_accents(a.base, a.harmony)
     base = working_base(raw)
     opts = {"blend": a.blend, "dither": a.dither, "grain": a.grain,
             "power": a.power, "flow_alpha": a.flow_alpha}

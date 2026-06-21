@@ -29,9 +29,11 @@
 #   THEME_WALLPAPER_SIZE   output WxH (default 7680x3240)
 #   THEME_WALLPAPER_STYLE  texture style: mesh | contour | flat | lowpoly |
 #                          dot | flow | tiedye | ribbon (default mesh)
-#   THEME_WALLPAPER_INVERT non-empty → render the wallpaper at the OPPOSITE
-#                          lightness of the theme (dark theme → light field), for
-#                          contrast behind windows. Works for any theme/style.
+#   THEME_WALLPAPER_HARMONY mono (default) | complement | split | triad |
+#                          analogous — rotate the wallpaper around the color wheel
+#                          relative to the theme hue, so the desktop complements
+#                          the terminal instead of just matching it. Works in both
+#                          solid and texture mode.
 #
 set -euo pipefail
 
@@ -52,6 +54,26 @@ def rgb(h):
     if len(h) == 3: h = ''.join(c*2 for c in h)
     return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 print('#%02x%02x%02x' % tuple(round(x*0.65) for x in rgb(sys.argv[1])))
+PY
+}
+
+# Rotate a #rrggbb around the color wheel by the harmony scheme's base offset,
+# lifting saturation so the rotated hue reads (a near-grey bg rotated 180° is
+# still near-grey otherwise). Keeps value, so dark stays dark. Mirrors
+# theme-texture's harmonize_base so solid mode matches the texture path. Unknown
+# modes are a no-op (offset 0, original sat) → safe pass-through.
+harmonize() { # hex mode
+  python3 - "$1" "$2" <<'PY'
+import sys, colorsys
+hexv, mode = sys.argv[1].lstrip('#'), sys.argv[2]
+off = {'complement': 180, 'split': 180, 'triad': 120, 'analogous': 30}.get(mode)
+r, g, b = (int(hexv[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+H, S, V = colorsys.rgb_to_hsv(r, g, b)
+if off is not None:
+    H = (H + off / 360.0) % 1.0
+    S = max(S, 0.30)
+r, g, b = colorsys.hsv_to_rgb(H, S, V)
+print('#%02x%02x%02x' % (round(r*255), round(g*255), round(b*255)))
 PY
 }
 
@@ -80,6 +102,9 @@ PY
 set_solid() {
   local bg color hex out
   bg="$(get background)"; bg="${bg:-#1e1e2e}"
+  # Harmony rotates the derived color off the theme hue; an explicit color arg is
+  # taken verbatim (the caller asked for exactly that).
+  [ "$HARMONY" != mono ] && bg="$(harmonize "$bg" "$HARMONY")"
   if [ -n "${1:-}" ]; then color="$1"; else color="$(darken "$bg")"; fi
   hex="${color#\#}"
   out="$CACHE/${hex}.png"
@@ -90,7 +115,7 @@ set_solid() {
 }
 
 set_texture() {
-  local bg name accents seed key out
+  local bg name accents seed key out harm hsuf
   bg="$(get background)"; bg="${bg:-#1e1e2e}"
   name="$(get theme)"; name="${name:-default}"
   # Accents = the colorful end of the 16-color ANSI palette (red/green/blue/
@@ -98,31 +123,32 @@ set_texture() {
   accents="$(printf '%s\n' "$cfg" | grep -E '^palette = (1|2|4|5)=' | sed -E 's/.*=//' | paste -sd, -)"
   [ -z "$accents" ] && accents="$(get foreground)"
   seed="$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
-  # Opt-in contrast wallpaper: render at the opposite lightness of the theme.
-  inv=""; [ -n "$INVERT" ] && inv="--invert"
+  # Opt-in color harmony: rotate the field around the wheel off the theme hue.
+  harm=""; [ "$HARMONY" != mono ] && harm="--harmony $HARMONY"
   # theme-texture takes the RAW bg (it does its own luminance-aware darken), so
-  # the cache key tracks the raw bg + style + invert state + a schema version bump.
-  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|${INVERT}|v8|${SIZE}" | cksum | cut -d' ' -f1)"
+  # the cache key tracks the raw bg + style + harmony + a schema version bump.
+  key="$(printf '%s' "${name}|${bg}|${accents}|${STYLE}|${HARMONY}|v9|${SIZE}" | cksum | cut -d' ' -f1)"
   out="$CACHE/tex-${STYLE}-${key}.png"
   mkdir -p "$CACHE"
   # Cache by content key: re-switching to a theme/style reuses its render instantly.
   if [ ! -f "$out" ]; then
-    if ! theme-texture --out "$out" --size "$SIZE" --base "$bg" --accents "$accents" --seed "$seed" --style "$STYLE" $inv; then
+    if ! theme-texture --out "$out" --size "$SIZE" --base "$bg" --accents "$accents" --seed "$seed" --style "$STYLE" $harm; then
       echo "↩ texture unavailable — falling back to solid" >&2
       set_solid; return
     fi
   fi
   set_wallpaper "$out"
-  echo "✔ texture(${STYLE}${INVERT:+,inverted}) → bg ${bg}, accents ${accents}   (theme ${name})"
+  hsuf=""; [ "$HARMONY" != mono ] && hsuf=",$HARMONY"
+  echo "✔ texture(${STYLE}${hsuf}) → bg ${bg}, accents ${accents}   (theme ${name})"
 }
 
 # Texture style: explicit 2nd arg (theme-wallpaper --texture flat) wins, else env.
 STYLE="${THEME_WALLPAPER_STYLE:-mesh}"
-# Contrast mode: render the wallpaper at the opposite lightness of the theme.
-INVERT="${THEME_WALLPAPER_INVERT:-}"
+# Color harmony: rotate the field around the wheel relative to the theme hue.
+HARMONY="${THEME_WALLPAPER_HARMONY:-mono}"
 
 case "${1:-}" in
-  -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   --texture) [ -n "${2:-}" ] && STYLE="$2"; set_texture ;;
   --solid)   set_solid ;;
   *)         set_solid "${1:-}" ;;
