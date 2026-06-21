@@ -428,12 +428,14 @@ def render_tiedye(w, h, base, accents, seed, opts):
 
 
 def render_ribbon(w, h, base, accents, seed, opts):
-    """2000s flowy 3D lines: translucent silk ribbons sine-waving across the
-    canvas, each with a rounded specular highlight (a Gaussian band offset off its
-    centerline) so it reads as a lit 3D surface, and each a different spectrum hue
-    so the overlaps blend like a Vista/WMP aurora. Composited over the theme bg in
-    linear light. Vivid but the ribbons thin out toward the center so windows sit
-    on the calmer band of the field."""
+    """2000s flowy 3D ribbons, lit as twisting glossy tubes. Each ribbon has a
+    semicircular cross-section shaded with Lambert diffuse + Blinn-Phong specular
+    (a tight highlight, not a soft blob), a TWIST that migrates the lit side across
+    the width and rolls a darker/desaturated BACK face into view, a soft drop
+    shadow onto the layers behind, and depth cueing (far ribbons thinner + dimmer),
+    so they read as solid 3D bands rather than flat gaussians. Painted far→near for
+    correct occlusion; hued across the spectrum so overlaps blend like a Vista/WMP
+    aurora; center-calmed so windows stay legible."""
     rng = np.random.default_rng(seed)
     L = luma(base) / 255.0
     xs = np.linspace(0.0, 1.0, w, dtype=np.float32)
@@ -447,25 +449,56 @@ def render_ribbon(w, h, base, accents, seed, opts):
     cdist = np.abs(gy - 0.5) * 2.0
     center_fade = np.clip(0.35 + 0.65 * cdist, 0.0, 1.0)
 
-    for k in range(nrib):
+    # Light + half-vector for Blinn-Phong; view is straight on (+z). Light from
+    # the upper-left so the highlight sits where the eye expects a top-lit tube.
+    Ld = np.array([-0.45, -0.55, 0.70], dtype=np.float32); Ld /= np.linalg.norm(Ld)
+    Hd = Ld + np.array([0, 0, 1], dtype=np.float32);       Hd /= np.linalg.norm(Hd)
+    shy = max(2, int(h * 0.012))                            # drop-shadow offset (px)
+
+    # Paint far→near so nearer ribbons occlude correctly and depth reads right.
+    for k, z in enumerate(sorted(rng.uniform(0.0, 1.0, nrib))):
         hue = (hue0 + k / nrib + rng.uniform(-0.04, 0.04)) % 1.0
-        col = hsv2rgb(np.float32(hue), np.float32(0.72),
-                      np.float32(0.95 - 0.10 * L))            # length-3
         amp = rng.uniform(0.08, 0.17)
         freq = rng.uniform(1.0, 2.2)
         freq2 = rng.uniform(2.6, 4.0)
         ph = rng.random() * 6.28318
-        y0 = rng.uniform(0.12, 0.88)
+        y0 = rng.uniform(0.14, 0.86)
+        near = 0.55 + 0.45 * z                              # 1=near, ~0.55=far
+        thick = rng.uniform(0.05, 0.10) * near             # far ribbons thinner
         center = (y0 + amp * np.sin(freq * gx * 2 * math.pi + ph)
                   + 0.4 * amp * np.sin(freq2 * gx * 2 * math.pi + ph * 1.7))
-        thick = rng.uniform(0.05, 0.10)
-        dist = (gy - center) / thick
-        band = np.exp(-0.5 * dist * dist)                    # ribbon profile
-        # Rounded specular: a highlight offset to one edge fakes a lit 3D tube.
-        spec = np.exp(-((dist + 0.4) ** 2) / (2 * 0.55 ** 2))
-        shade = 0.45 + 0.85 * spec
-        ribcol = to_lin(np.clip(col[None, None, :] * shade[..., None], 0, 255))
-        a = (band * center_fade)[..., None] * 0.6
+        u = (gy - center) / thick                          # cross-ribbon coord
+
+        # Twist along the length: shifts the cross-section so the highlight slides
+        # across the width and the far edge rolls to a back face.
+        twist = np.sin(rng.uniform(2.0, 3.5) * gx * 2 * math.pi + rng.random() * 6.283)
+        uu = u + 0.55 * twist
+
+        # Semicircular tube normal N=(0, ny, nz): center faces the viewer, edges
+        # roll away. Diffuse + a tight specular give the round, glossy read.
+        body = np.clip(1.0 - uu * uu, 0.0, 1.0)
+        nz = np.sqrt(body + 1e-6)
+        ny = np.clip(uu, -1.0, 1.0)
+        diffuse = 0.40 + 0.70 * np.clip(ny * Ld[1] + nz * Ld[2], 0.0, 1.0)
+        spec = np.power(np.clip(ny * Hd[1] + nz * Hd[2], 0.0, 1.0), 42.0)
+        front = np.abs(uu) <= 1.0                           # back face = rolled past
+        sat = np.where(front, 0.72, 0.45).astype(np.float32)
+        val = np.where(front, 0.95 - 0.10 * L, 0.50 - 0.08 * L).astype(np.float32)
+        col = hsv2rgb(np.full_like(gx, hue, dtype=np.float32), sat, val)
+        shaded = col * diffuse[..., None] + 255.0 * spec[..., None]
+
+        # Coverage: a solid body with a soft AA silhouette (defined edge → 3D),
+        # plus rim darkening just inside the edge to round the tube off.
+        cov = np.clip((1.0 - np.abs(u)) / 0.14, 0.0, 1.0)
+        rim = 1.0 - 0.40 * np.clip((np.abs(u) - 0.55) / 0.45, 0.0, 1.0)
+        ribcol = to_lin(np.clip(shaded * rim[..., None], 0, 255))
+
+        # Soft drop shadow onto whatever's already painted (offset down-right).
+        sh = np.zeros_like(cov)
+        sh[shy:, shy:] = cov[:-shy, :-shy]
+        out_lin *= (1.0 - ((sh * center_fade)[..., None] * 0.28))
+
+        a = (cov * center_fade)[..., None] * (0.88 * near)
         out_lin = out_lin * (1.0 - a) + ribcol * a
 
     return _finish(to_srgb(out_lin), w, h, seed, 2.0, opts["grain"])
