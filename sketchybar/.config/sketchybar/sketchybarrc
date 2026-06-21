@@ -130,13 +130,24 @@ sketchybar --add item agentready left \
   --subscribe agentready agent_ready_change aerospace_workspace_change
 
 # ── Right side: clock (in the Ghostty font, monospace) ───────────────────────
+# Split into two items so only the time renders Bold; the date stays Medium.
+# Right-side items fill right-to-left in add order, so add time first (rightmost)
+# then date (to its left) to read "Wed Jun 21  14:30".
+sketchybar --add item clocktime right \
+  --set clocktime \
+    update_freq=10 \
+    icon.drawing=off \
+    label.font="$GHOSTTY_FONT:Bold:20.0" \
+    label.color=$ACCENT_FG \
+    label.padding_left=6 \
+    label.padding_right=8 \
+    script="$PLUGIN_DIR/clock-time.sh"
 sketchybar --add item clock right \
   --set clock \
     update_freq=10 \
     icon.drawing=off \
     label.font="$FONT_LABEL" \
     label.color=$ACCENT_FG \
-    label.padding_right=8 \
     script="$PLUGIN_DIR/clock.sh"
 
 # ── Right side: battery (LAPTOPS ONLY) ───────────────────────────────────────
