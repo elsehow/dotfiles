@@ -71,6 +71,35 @@ PY
   printf '%s\n' "$list" | awk 'BEGIN{srand()} NF{a[++n]=$0} END{if(n)print a[int(rand()*n)+1]}'
 }
 
+# Decide whether a theme is light or dark from its background luminance (read
+# straight from the theme file, same threshold as random_theme) and flip the
+# macOS system appearance to match. Same luminance >= 140 = light convention.
+sync_macos_appearance() {
+  local name="$1" dark
+  dark="$(python3 - "$name" "$THEME_DIRS" <<'PY'
+import os, sys
+name = sys.argv[1]
+def rgb(h):
+    h = h.strip().lstrip('#')
+    if len(h) == 3: h = ''.join(c*2 for c in h)
+    try: return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+    except Exception: return None
+def lum(c): return 0.299*c[0] + 0.587*c[1] + 0.114*c[2]
+for d in sys.argv[2].split(':'):
+    p = os.path.join(d, name)
+    if not os.path.isfile(p): continue
+    for line in open(p, encoding='utf-8', errors='ignore'):
+        if line.startswith('background'):
+            bg = rgb(line.split('=', 1)[1])
+            if bg: print('false' if lum(bg) >= 140 else 'true')
+            sys.exit(0)
+    break
+PY
+)"
+  [ -z "$dark" ] && return 0
+  osascript -e "tell application \"System Events\" to tell appearance preferences to set dark mode to $dark" 2>/dev/null || true
+}
+
 # Write `key = value` into the Ghostty config IN PLACE. Critical: write through
 # the symlink with `cat > "$CFG"` rather than `mv` over it — `mv` would replace
 # the stow symlink with a real file and silently detach the config from the repo.
@@ -166,6 +195,9 @@ theme="$match"
 # Update the theme + background-opacity in the Ghostty config (symlink-safe).
 set_cfg theme "$theme"
 set_cfg background-opacity "$OPACITY"
+
+# Flip macOS light/dark to match the theme's background luminance.
+sync_macos_appearance "$theme"
 
 # Re-sync the bar — generate-theme.sh re-reads the (now updated) ghostty config.
 sketchybar --reload >/dev/null 2>&1 || true
